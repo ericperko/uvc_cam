@@ -48,7 +48,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "uvc_cam");
 
   ros::NodeHandle n;
-  ros::Publisher pub = n.advertise<image_msgs::Image>("image", 10);
+  ros::Publisher pub = n.advertise<image_msgs::Image>("image", 1);
 
   uvc_cam::Cam cam(argv[1]);
 
