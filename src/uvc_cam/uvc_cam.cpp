@@ -157,6 +157,8 @@ Cam::Cam(const char *_device, mode_t _mode)
   set_control(10094849, 1);
   //set_control(0x9a9010, 100);
 
+  try 
+    {
   set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 300);
   set_control(V4L2_CID_BRIGHTNESS, 140);
   set_control(V4L2_CID_CONTRAST, 40);
@@ -167,6 +169,11 @@ Cam::Cam(const char *_device, mode_t _mode)
   set_control(9963795, 200); // gain
   set_control(9963803, 100); // sharpness
   set_control(9963778, 50); // saturation
+    }
+  catch (std::runtime_error &ex)
+    {
+      printf("ERROR: could not set some settings.  \n %s \n", ex.what());
+    }
 /*
   v4l2_jpegcompression v4l2_jpeg;
   if (ioctl(fd, VIDIOC_G_JPEGCOMP, &v4l2_jpeg) < 0)
@@ -240,7 +247,7 @@ void Cam::enumerate()
   DIR *d = opendir(v4l_path.c_str());
   if (!d)
     throw std::runtime_error("couldn't open " + v4l_path);
-  struct dirent *ent, *ent2;
+  struct dirent *ent, *ent2, *ent3;
   int fd, ret;
   struct v4l2_capability v4l2_cap;
   while ((ent = readdir(d)) != NULL)
@@ -269,7 +276,20 @@ void Cam::enumerate()
     {
       if (strncmp(ent2->d_name, "input", 5))
         continue; // ignore anything not beginning with "input"
-      input_dir = ent2->d_name;
+
+      DIR *input = opendir((v4l_dev_path + string("/") + string(ent2->d_name)).c_str());
+      bool output_set = false;
+      while ((ent3 = readdir(input)) != NULL)
+      {
+        if (!strncmp(ent3->d_name, "input", 5))
+        {
+          input_dir = (string("input/") + string(ent3->d_name )).c_str();
+          output_set = true;
+          break;
+        }
+      }
+      if (!output_set)
+        input_dir = ent2->d_name; 
       break;
     }
     closedir(d2);
