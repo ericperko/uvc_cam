@@ -34,13 +34,13 @@
 //#include <sensor_msgs/CamInfo.h>
 #include "sensor_msgs/Image.h"
 
-const unsigned WIDTH = 640, HEIGHT = 480;
+const unsigned WIDTH = 160, HEIGHT = 120;
 
 
 
 int main(int argc, char **argv)
 {
-  if (argc != 2)
+  if (argc < 2)
   {
     fprintf(stderr, "usage: sender DEVICE\n");
     return 1;
