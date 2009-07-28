@@ -13,7 +13,7 @@
 using std::string;
 using namespace uvc_cam;
 
-static const unsigned WIDTH = 160, HEIGHT = 120, FPS = 5;
+static const unsigned WIDTH = 160, HEIGHT = 120, FPS = 10;
 
 Cam::Cam(const char *_device, mode_t _mode)
 : mode(_mode), device(_device), rgb_frame(NULL)
