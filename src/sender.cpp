@@ -30,8 +30,9 @@
 #include <ros/ros.h>
 #include <ros/time.h>
 #include "uvc_cam/uvc_cam.h"
-
-#include "image_msgs/Image.h"
+//#include <sensor_msgs/StereoInfo.h>
+//#include <sensor_msgs/CamInfo.h>
+#include "sensor_msgs/Image.h"
 
 const unsigned WIDTH = 640, HEIGHT = 480;
 
@@ -48,7 +49,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "uvc_cam");
 
   ros::NodeHandle n;
-  ros::Publisher pub = n.advertise<image_msgs::Image>("image", 1);
+  ros::Publisher pub = n.advertise<sensor_msgs::Image>("image", 1);
 
   uvc_cam::Cam cam(argv[1]);
 
@@ -68,7 +69,7 @@ int main(int argc, char **argv)
 	}
       if (frame)
 	{
-	  image_msgs::Image image; 
+	  sensor_msgs::Image image; 
       
 	  image.header.stamp = ros::Time::now();
 	  image.label = "UVC Camera Image";
