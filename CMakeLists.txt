@@ -32,3 +32,6 @@ target_link_libraries(dump uvc_cam)
 
 rospack_add_executable(sender src/sender.cpp)
 target_link_libraries(sender uvc_cam)
+
+rospack_add_executable(dump_send src/dump/dump_send.cpp src/dump/avilib.c)
+target_link_libraries(dump_send uvc_cam)
