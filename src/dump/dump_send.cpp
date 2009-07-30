@@ -12,7 +12,7 @@ extern "C"
 #include "avilib.h"
 }
 
-const unsigned WIDTH = 640, HEIGHT = 480, FPS = 30;
+const unsigned WIDTH = 160, HEIGHT = 120, FPS = 10;
 static bool done = false;
 
 void sigint_handler(int sig)
