@@ -46,7 +46,7 @@ int main(int argc, char **argv)
   uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_RGB);
   int count = 0, keyframe = 1;
   signal(SIGINT, sigint_handler);
-  while (n.ok())
+  while (n.ok() && !done)
   {
     unsigned char *frame = NULL;
     uint32_t bytes_used;
