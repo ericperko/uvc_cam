@@ -6,7 +6,6 @@
 #include <signal.h>
 #include <stdexcept>
 #include <ros/ros.h>
-#include "uvc_cam/uvc_cam.h"
 #include "sensor_msgs/Image.h"
 extern "C"
 {
@@ -42,9 +41,9 @@ int main(int argc, char **argv)
     throw std::runtime_error("couldn't open frame time log");
   if (AVI_open_output_file(&avi, fname) < 0)
     throw std::runtime_error("couldn't open AVI file");
-  AVI_set_video(&avi, WIDTH, HEIGHT, FPS, "MJPG");
+  AVI_set_video(&avi, WIDTH, HEIGHT, FPS, "RGB");
 
-  uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_MJPG);
+  uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_RGB);
   int count = 0, keyframe = 1;
   signal(SIGINT, sigint_handler);
   while (n.ok())
