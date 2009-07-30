@@ -47,7 +47,7 @@ int main(int argc, char **argv)
   uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_MJPG);
   int count = 0, keyframe = 1;
   signal(SIGINT, sigint_handler);
-  while (!done)
+  while (n.ok())
   {
     unsigned char *frame = NULL;
     uint32_t bytes_used;
@@ -106,6 +106,5 @@ int main(int argc, char **argv)
   }
   fclose(time_log);
   AVI_close(&avi);
-  printf("goodbye\n");
   return 0;
 }
