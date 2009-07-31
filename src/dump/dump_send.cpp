@@ -54,16 +54,13 @@ int main(int argc, char **argv)
     //printf("      %d byte image\n", bytes_used);
     if (frame)
     {
-      fprintf(time_log, "%.6f\n", ros::Time::now().toSec());
-      AVI_write_frame(&avi, frame, bytes_used, keyframe);
-      //fwrite(frame, bytes_used, 1, f);
       sensor_msgs::Image image; 
       
       image.header.stamp = ros::Time::now();
       image.label = "UVC Camera Image";
       image.encoding = "rgb";
       image.depth = "uint8";
-      
+            
       std_msgs::UInt8MultiArray & multi_arr = image.uint8_data;
       multi_arr.layout.dim.resize(3);
       multi_arr.layout.dim[0].label  = "height";
@@ -77,6 +74,8 @@ int main(int argc, char **argv)
       multi_arr.layout.dim[2].stride = 3;
       
       multi_arr.data.resize(3 * HEIGHT * WIDTH);
+      memcpy(&multi_arr.data[0], frame, WIDTH*HEIGHT*3);
+      
       uint8_t* bgr = &multi_arr.data[0];
       for (uint32_t y = 0; y < HEIGHT; y++)
 	for (uint32_t x = 0; x < WIDTH; x++)
@@ -85,8 +84,13 @@ int main(int argc, char **argv)
 	    uint8_t *q = bgr   + y * WIDTH * 3 + x * 3;
 	    q[0] = p[2]; q[1] = p[1]; q[2] = p[0];
 	  }
-      pub.publish(image);     
+      pub.publish(image);
+     
+      fprintf(time_log, "%.6f\n", ros::Time::now().toSec());
+      //AVI_write_frame(&avi, frame, bytes_used, keyframe);
+      AVI_write_frame(&avi, frame, 3*HEIGHT*WIDTH, keyframe);
 
+      //fwrite(frame, bytes_used, 1, f);
 
       cam.release(buf_idx);
       if (keyframe) keyframe = 0;
@@ -95,11 +99,11 @@ int main(int argc, char **argv)
       cam.release(buf_idx);
       */
     }
-    if (count++ % 30 == 0)
+    if (count++ % FPS == 0)
     {
       ros::Time t(ros::Time::now());
       ros::Duration d(t - t_prev);
-      printf("%.1f fps\n", 30.0 / d.toSec());
+      printf("%.1f fps\n", (double)FPS / d.toSec());
       t_prev = t;
     }
   }

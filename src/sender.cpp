@@ -34,7 +34,7 @@
 //#include <sensor_msgs/CamInfo.h>
 #include "sensor_msgs/Image.h"
 
-const unsigned WIDTH = 160, HEIGHT = 120;
+const unsigned WIDTH = 160, HEIGHT = 120, FPS = 10;
 
 
 
@@ -60,11 +60,11 @@ int main(int argc, char **argv)
       unsigned char *frame = NULL;
       uint32_t bytes_used;
       int buf_idx = cam.grab(&frame, bytes_used);
-      if (count++ % 30 == 0)
+      if (count++ % FPS == 0)
 	{
 	  ros::Time t(ros::Time::now());
 	  ros::Duration d(t - t_prev);
-	  ROS_INFO("%.1f fps\n", 30.0 / d.toSec());
+	  ROS_INFO("%.1f fps\n", (double)FPS / d.toSec());
 	  t_prev = t;
 	}
       if (frame)

@@ -58,11 +58,11 @@ int main(int argc, char **argv)
       cam.release(buf_idx);
       */
     }
-    if (count++ % 30 == 0)
+    if (count++ % FPS == 0)
     {
       ros::Time t(ros::Time::now());
       ros::Duration d(t - t_prev);
-      printf("%.1f fps\n", 30.0 / d.toSec());
+      printf("%.1f fps\n", (double)FPS / d.toSec());
       t_prev = t;
     }
   }

@@ -1072,15 +1072,15 @@ int AVI_write_frame(struct avi_t *AVI, BYTE *data, long bytes, int keyframe)
 
 	if(AVI->mode==AVI_MODE_READ) { AVI_errno = AVI_ERR_NOT_PERM; return -1; }
 
-		pos = AVI->pos;
-		ret = avi_write_data(AVI,data,bytes,0, keyframe);
-   
-		if(!(ret < 0)) 
-		{
-			AVI->last_pos = pos;
-			AVI->last_len = bytes;
-			AVI->video_frames++;
-		}
+	pos = AVI->pos;
+	ret = avi_write_data(AVI,data,bytes,0, keyframe);
+	
+	if(!(ret < 0)) 
+	  {
+	    AVI->last_pos = pos;
+	    AVI->last_len = bytes;
+	    AVI->video_frames++;
+	  }
 	return ret;
 }
 
