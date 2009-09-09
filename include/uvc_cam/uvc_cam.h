@@ -24,6 +24,7 @@
 
 #include <string>
 #include <linux/videodev2.h>
+#include <stdint.h>
 
 namespace uvc_cam
 {

@@ -17,9 +17,6 @@ rospack_add_library(uvc_cam src/uvc_cam/uvc_cam.cpp)
 # real-time....
 #target_link_libraries(dc1394cam rt)
 
-#rospack_add_executable(cam_dump src/util/cam_dump/cam_dump.cpp)
-#target_link_libraries(cam_dump dc1394cam)
-
 rospack_add_executable(view src/view/view.cpp)
 target_link_libraries(view uvc_cam)
 target_link_libraries(view ${SDL_LIBRARIES})

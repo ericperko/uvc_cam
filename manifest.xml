@@ -6,7 +6,6 @@
   <license>GPL</license>
   <review status="unreviewed" notes=""/>
   <depend package="roscpp"/>
-  <!--<depend package="image_msgs"/>-->
   <depend package="sensor_msgs"/>
   <depend package="sdlgl"/>
   <export>

@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <ros/ros.h>
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/image_encodings.h"
 extern "C"
 {
 #include "avilib.h"
@@ -57,26 +58,36 @@ int main(int argc, char **argv)
       sensor_msgs::Image image; 
       
       image.header.stamp = ros::Time::now();
-      image.label = "UVC Camera Image";
-      image.encoding = "rgb";
-      image.depth = "uint8";
+//      image.label = "UVC Camera Image";
+      image.encoding = sensor_msgs::image_encodings::RGB8;
+//      image.depth = "uint8";
+
+      image.height = HEIGHT;
+      image.width = WIDTH;
+
+//      image.is_bigendian = ;
+      image.step = 3 * WIDTH;
             
-      std_msgs::UInt8MultiArray & multi_arr = image.uint8_data;
-      multi_arr.layout.dim.resize(3);
-      multi_arr.layout.dim[0].label  = "height";
-      multi_arr.layout.dim[0].size   = HEIGHT;
-      multi_arr.layout.dim[0].stride = 3 * HEIGHT * WIDTH;
-      multi_arr.layout.dim[1].label  = "width";
-      multi_arr.layout.dim[1].size   = WIDTH;
-      multi_arr.layout.dim[1].stride = 3 * WIDTH;
-      multi_arr.layout.dim[2].label  = "channel";
-      multi_arr.layout.dim[2].size   = 3;
-      multi_arr.layout.dim[2].stride = 3;
+//      std_msgs::UInt8MultiArray & multi_arr = image.uint8_data;
+//      multi_arr.layout.dim.resize(3);
+//      multi_arr.layout.dim[0].label  = "height";
+//      multi_arr.layout.dim[0].size   = HEIGHT;
+//      multi_arr.layout.dim[0].stride = 3 * HEIGHT * WIDTH;
+//      multi_arr.layout.dim[1].label  = "width";
+//      multi_arr.layout.dim[1].size   = WIDTH;
+//      multi_arr.layout.dim[1].stride = 3 * WIDTH;
+//      multi_arr.layout.dim[2].label  = "channel";
+//      multi_arr.layout.dim[2].size   = 3;
+//      multi_arr.layout.dim[2].stride = 3;
       
-      multi_arr.data.resize(3 * HEIGHT * WIDTH);
-      memcpy(&multi_arr.data[0], frame, WIDTH*HEIGHT*3);
+//      multi_arr.data.resize(3 * HEIGHT * WIDTH);
+//      memcpy(&multi_arr.data[0], frame, WIDTH*HEIGHT*3);
       
-      uint8_t* bgr = &multi_arr.data[0];
+//      uint8_t* bgr = &multi_arr.data[0];
+
+      image.set_data_size( image.step * image.height );
+      uint8_t* bgr = &(image.data[0]);
+      
       for (uint32_t y = 0; y < HEIGHT; y++)
 	for (uint32_t x = 0; x < WIDTH; x++)
 	  {
