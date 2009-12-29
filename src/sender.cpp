@@ -36,24 +36,22 @@
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/image_encodings.h"
 
-const unsigned WIDTH = 160, HEIGHT = 120, FPS = 10;
-
-
-
 int main(int argc, char **argv)
 {
-  if (argc < 2)
-  {
-    fprintf(stderr, "usage: sender DEVICE\n");
-    return 1;
-  }
-
   ros::init(argc, argv, "uvc_cam");
-
   ros::NodeHandle n;
-  ros::Publisher pub = n.advertise<sensor_msgs::Image>("image", 1);
+  ros::NodeHandle n_private("~");
 
-  uvc_cam::Cam cam(argv[1]);
+  std::string device;
+  n_private.param<std::string>("device", device, "/dev/video0");
+  int width, height, fps;
+  n_private.param("width", width, 640);
+  n_private.param("height", height, 480);
+  n_private.param("fps", fps, 30);
+
+  ros::Publisher pub = n.advertise<sensor_msgs::Image>("image", 1);
+  ROS_INFO("opening uvc_cam as %dx%d at %d fps", width, height, fps);
+  uvc_cam::Cam cam(device.c_str(), uvc_cam::Cam::MODE_RGB, width, height, fps);
 
   ros::Time t_prev(ros::Time::now());
   int count = 0;
@@ -62,31 +60,31 @@ int main(int argc, char **argv)
     unsigned char *frame = NULL;
     uint32_t bytes_used;
     int buf_idx = cam.grab(&frame, bytes_used);
-    if (count++ % FPS == 0)
+    if (count++ % fps == 0)
     {
       ros::Time t(ros::Time::now());
       ros::Duration d(t - t_prev);
-      ROS_INFO("%.1f fps\n", (double)FPS / d.toSec());
+      ROS_INFO("%.1f fps", (double)fps / d.toSec());
       t_prev = t;
     }
     if (frame)
     {
       sensor_msgs::Image image; 
-
       image.header.stamp = ros::Time::now();
       image.encoding = sensor_msgs::image_encodings::RGB8;
-      image.height = HEIGHT;
-      image.width = WIDTH;
-      image.step = 3 * WIDTH;
+      image.height = height;
+      image.width = width;
+      image.step = 3 * width;
 
       image.set_data_size( image.step * image.height );
       uint8_t* bgr = &(image.data[0]);
 
-      for (uint32_t y = 0; y < HEIGHT; y++)
-        for (uint32_t x = 0; x < WIDTH; x++)
+      for (uint32_t y = 0; y < height; y++)
+        for (uint32_t x = 0; x < width; x++)
         {
-          uint8_t *p = frame + y * WIDTH * 3 + x * 3;
-          uint8_t *q = bgr   + y * WIDTH * 3 + x * 3;
+          // hack... flip bgr to rgb
+          uint8_t *p = frame + y * width * 3 + x * 3;
+          uint8_t *q = bgr   + y * width * 3 + x * 3;
           q[0] = p[2]; q[1] = p[1]; q[2] = p[0];
         }
       pub.publish(image);

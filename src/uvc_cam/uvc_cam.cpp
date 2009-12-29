@@ -13,10 +13,9 @@
 using std::string;
 using namespace uvc_cam;
 
-static const unsigned WIDTH = 160, HEIGHT = 120, FPS = 10;
-
-Cam::Cam(const char *_device, mode_t _mode)
-: mode(_mode), device(_device), rgb_frame(NULL)
+Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
+: mode(_mode), device(_device), 
+  width(_width), height(_height), fps(_fps), rgb_frame(NULL)
 {
   if ((fd = open(_device, O_RDWR)) == -1)
     throw std::runtime_error("couldn't open " + device);
@@ -90,8 +89,8 @@ Cam::Cam(const char *_device, mode_t _mode)
   if (errno != EINVAL)
     throw std::runtime_error("error enumerating frame formats");
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  fmt.fmt.pix.width = WIDTH;
-  fmt.fmt.pix.height = HEIGHT;
+  fmt.fmt.pix.width = width;
+  fmt.fmt.pix.height = height;
   if (mode == MODE_RGB) // grab in yuyv, we'll convert later
     fmt.fmt.pix.pixelformat = 'Y' | ('U' << 8) | ('Y' << 16) | ('V' << 24);
   else
@@ -99,11 +98,11 @@ Cam::Cam(const char *_device, mode_t _mode)
   fmt.fmt.pix.field = V4L2_FIELD_ANY;
   if ((ret = ioctl(fd, VIDIOC_S_FMT, &fmt)) < 0)
     throw std::runtime_error("couldn't set format");
-  if (fmt.fmt.pix.width != WIDTH || fmt.fmt.pix.height != HEIGHT)
+  if (fmt.fmt.pix.width != width || fmt.fmt.pix.height != height)
     throw std::runtime_error("pixel format unavailable");
   streamparm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   streamparm.parm.capture.timeperframe.numerator = 1;
-  streamparm.parm.capture.timeperframe.denominator = FPS;
+  streamparm.parm.capture.timeperframe.denominator = fps;
   if ((ret = ioctl(fd, VIDIOC_S_PARM, &streamparm)) < 0)
     throw std::runtime_error("unable to set framerate");
   v4l2_queryctrl queryctrl;
@@ -158,22 +157,23 @@ Cam::Cam(const char *_device, mode_t _mode)
   //set_control(0x9a9010, 100);
 
   try 
-    {
-  set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 300);
-  set_control(V4L2_CID_BRIGHTNESS, 140);
-  set_control(V4L2_CID_CONTRAST, 40);
-  //set_control(V4L2_CID_WHITE_BALANCE_TEMP_AUTO_OLD, 0);
-  set_control(9963788, 0); // auto white balance
-  set_control(9963802, 1000); // color temperature
-  set_control(9963800, 2);  // power line frequency to 60 hz
-  set_control(9963795, 200); // gain
-  set_control(9963803, 100); // sharpness
-  set_control(9963778, 50); // saturation
-    }
+  {
+    set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 300);
+    set_control(V4L2_CID_BRIGHTNESS, 140);
+    set_control(V4L2_CID_CONTRAST, 40);
+    //set_control(V4L2_CID_WHITE_BALANCE_TEMP_AUTO_OLD, 0);
+    set_control(9963788, 0); // auto white balance
+    set_control(9963802, 1000); // color temperature
+    set_control(9963800, 2);  // power line frequency to 60 hz
+    set_control(9963795, 200); // gain
+    set_control(9963803, 100); // sharpness
+    set_control(9963778, 50); // saturation
+  }
   catch (std::runtime_error &ex)
-    {
-      printf("ERROR: could not set some settings.  \n %s \n", ex.what());
-    }
+  {
+    printf("ERROR: could not set some settings.  \n %s \n", ex.what());
+  }
+
 /*
   v4l2_jpegcompression v4l2_jpeg;
   if (ioctl(fd, VIDIOC_G_JPEGCOMP, &v4l2_jpeg) < 0)
@@ -223,7 +223,7 @@ Cam::Cam(const char *_device, mode_t _mode)
   int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   if (ioctl(fd, VIDIOC_STREAMON, &type) < 0)
     throw std::runtime_error("unable to start capture");
-  rgb_frame = new unsigned char[WIDTH * HEIGHT * 3];
+  rgb_frame = new unsigned char[width * height * 3];
 }
 
 Cam::~Cam()
@@ -370,7 +370,7 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
     *frame = rgb_frame;
     // yuyv is 2 bytes per pixel. step through every pixel pair.
     unsigned char *prgb = rgb_frame;
-    for (unsigned i = 0; i < WIDTH * HEIGHT * 2; i += 4)
+    for (unsigned i = 0; i < width * height * 2; i += 4)
     {
       /*
       *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));

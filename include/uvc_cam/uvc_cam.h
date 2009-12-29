@@ -54,14 +54,17 @@ class Cam
 {
 public:
   enum mode_t { MODE_RGB, MODE_MJPG } mode;
-  Cam(const char *device, mode_t _mode = MODE_RGB);
+  Cam(const char *device, mode_t _mode = MODE_RGB,
+      int _width = 640, int _height = 480, int _fps = 30);
   ~Cam();
   static void enumerate();
   int grab(unsigned char **frame, uint32_t &bytes_used);
   void release(unsigned buf_idx);
+  bool set_auto_white_balance(bool on);
 private:
   std::string device;
   int fd;
+  unsigned width, height, fps;
   v4l2_format fmt;
   v4l2_capability cap;
   v4l2_streamparm streamparm;
