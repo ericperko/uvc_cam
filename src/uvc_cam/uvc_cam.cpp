@@ -17,6 +17,7 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
 : mode(_mode), device(_device), 
   width(_width), height(_height), fps(_fps), rgb_frame(NULL)
 {
+  printf("opening %s\n", _device);
   if ((fd = open(_device, O_RDWR)) == -1)
     throw std::runtime_error("couldn't open " + device);
   memset(&fmt, 0, sizeof(v4l2_format));
