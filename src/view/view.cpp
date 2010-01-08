@@ -19,17 +19,8 @@ void save_photo(uint8_t *frame)
     printf("couldn't open %s\n", fnbuf);
     return;
   }
-  uint8_t *bgr = new uint8_t[WIDTH*HEIGHT*3];
-  for (uint32_t y = 0; y < HEIGHT; y++)
-    for (uint32_t x = 0; x < WIDTH; x++)
-    {
-      uint8_t *p = frame + y * WIDTH * 3 + x * 3;
-      uint8_t *q = bgr   + y * WIDTH * 3 + x * 3;
-      q[0] = p[2]; q[1] = p[1]; q[2] = p[0];
-    }
   fprintf(f, "P6\n%d %d\n255\n", WIDTH, HEIGHT);
-  fwrite(bgr, 1, WIDTH * HEIGHT * 3, f);
-  delete[] bgr;
+  fwrite(frame, 1, WIDTH * HEIGHT * 3, f);
   fclose(f);
 }
 
@@ -53,6 +44,7 @@ int main(int argc, char **argv)
   SDL_WM_SetCaption("hello world", "hello world");
   ros::Time t_prev(ros::Time::now());
   int count = 0;
+  uint8_t *bgr_frame = new uint8_t[WIDTH*HEIGHT*3];
   for (bool done = false; !done;)
   {
     unsigned char *frame = NULL;
@@ -67,7 +59,14 @@ int main(int argc, char **argv)
     }
     if (frame)
     {
-      memcpy(surf->pixels, frame, WIDTH*HEIGHT*3);
+      for (uint32_t y = 0; y < HEIGHT; y++)
+        for (uint32_t x = 0; x < WIDTH; x++)
+        {
+          uint8_t *p = frame     + y * WIDTH * 3 + x * 3;
+          uint8_t *q = bgr_frame + y * WIDTH * 3 + x * 3;
+          q[0] = p[2]; q[1] = p[1]; q[2] = p[0];
+        }
+      memcpy(surf->pixels, bgr_frame, WIDTH*HEIGHT*3);
       cam.release(buf_idx);
     }
     //usleep(1000);
@@ -91,6 +90,7 @@ int main(int argc, char **argv)
       }
     }
   }
+  delete[] bgr_frame;
   return 0;
 }
 

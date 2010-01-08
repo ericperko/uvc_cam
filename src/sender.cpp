@@ -31,8 +31,6 @@
 #include <ros/ros.h>
 #include <ros/time.h>
 #include "uvc_cam/uvc_cam.h"
-//#include <sensor_msgs/StereoInfo.h>
-//#include <sensor_msgs/CamInfo.h>
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/image_encodings.h"
 
@@ -44,17 +42,20 @@ int main(int argc, char **argv)
 
   std::string device;
   n_private.param<std::string>("device", device, "/dev/video0");
-  int width, height, fps;
+  int width, height, fps, modetect_lum, modetect_count;
   n_private.param("width", width, 640);
   n_private.param("height", height, 480);
   n_private.param("fps", fps, 30);
+  n_private.param("motion_threshold_luminance", modetect_lum, 100); 
+  n_private.param("motion_threshold_count", modetect_count, -1); 
 
   ros::Publisher pub = n.advertise<sensor_msgs::Image>("image", 1);
-  ROS_INFO("opening uvc_cam as %dx%d at %d fps", width, height, fps);
+  ROS_INFO("opening uvc_cam at %dx%d, %d fps", width, height, fps);
   uvc_cam::Cam cam(device.c_str(), uvc_cam::Cam::MODE_RGB, width, height, fps);
+  cam.set_motion_thresholds(modetect_lum, modetect_count);
 
   ros::Time t_prev(ros::Time::now());
-  int count = 0;
+  int count = 0, skip_count = 0;
   while (n.ok())
   {
     unsigned char *frame = NULL;
@@ -64,7 +65,7 @@ int main(int argc, char **argv)
     {
       ros::Time t(ros::Time::now());
       ros::Duration d(t - t_prev);
-      ROS_INFO("%.1f fps", (double)fps / d.toSec());
+      ROS_INFO("%.1f fps skip %d", (double)fps / d.toSec(), skip_count);
       t_prev = t;
     }
     if (frame)
@@ -77,8 +78,8 @@ int main(int argc, char **argv)
       image.step = 3 * width;
 
       image.set_data_size( image.step * image.height );
+      /*
       uint8_t* bgr = &(image.data[0]);
-
       for (uint32_t y = 0; y < height; y++)
         for (uint32_t x = 0; x < width; x++)
         {
@@ -87,9 +88,13 @@ int main(int argc, char **argv)
           uint8_t *q = bgr   + y * width * 3 + x * 3;
           q[0] = p[2]; q[1] = p[1]; q[2] = p[0];
         }
+      */
+      memcpy(&image.data[0], frame, width * height * 3);
       pub.publish(image);
       cam.release(buf_idx);
     }
+    else
+      skip_count++;
   }
   return 0;
 }

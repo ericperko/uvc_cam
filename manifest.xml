@@ -12,5 +12,4 @@
     <cpp cflags="-I${prefix}/include" lflags="-L${prefix}/lib -luvc_cam"/>
   </export>
   <url></url>
-  <sysdepend os="ubuntu" version="8.04-hardy" package="libsdl1.2-dev"/>
 </package>

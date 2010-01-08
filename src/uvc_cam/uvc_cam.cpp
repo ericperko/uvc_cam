@@ -14,7 +14,8 @@ using std::string;
 using namespace uvc_cam;
 
 Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
-: mode(_mode), device(_device), 
+: mode(_mode), device(_device),
+  motion_threshold_luminance(100), motion_threshold_count(-1),
   width(_width), height(_height), fps(_fps), rgb_frame(NULL)
 {
   printf("opening %s\n", _device);
@@ -152,13 +153,13 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
     else if (i == V4L2_CID_PRIVATE_LAST)
       i = V4L2_CID_BASE_EXTCTR;
   }
-  //set_control(V4L2_CID_EXPOSURE_AUTO_NEW, 2);
-  set_control(10094851, 0);
-  set_control(10094849, 1);
-  //set_control(0x9a9010, 100);
 
   try 
   {
+    //set_control(V4L2_CID_EXPOSURE_AUTO_NEW, 2);
+    set_control(10094851, 0);
+    set_control(10094849, 1);
+    //set_control(0x9a9010, 100);
     set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 300);
     set_control(V4L2_CID_BRIGHTNESS, 140);
     set_control(V4L2_CID_CONTRAST, 40);
@@ -225,6 +226,7 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
   if (ioctl(fd, VIDIOC_STREAMON, &type) < 0)
     throw std::runtime_error("unable to start capture");
   rgb_frame = new unsigned char[width * height * 3];
+  last_yuv_frame = new unsigned char[width * height * 2];
 }
 
 Cam::~Cam()
@@ -238,8 +240,11 @@ Cam::~Cam()
       perror("failed to unmap buffer");
   close(fd);
   if (rgb_frame)
+  {
     delete[] rgb_frame;
-  rgb_frame = NULL;
+    delete[] last_yuv_frame;
+  }
+  last_yuv_frame = rgb_frame = NULL;
 }
 
 void Cam::enumerate()
@@ -367,26 +372,43 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
   bytes_used = buf.bytesused;
   if (mode == MODE_RGB)
   {
+    int num_pixels_different = 0; // just look at the Y channel
     unsigned char *pyuv = (unsigned char *)mem[buf.index];
-    *frame = rgb_frame;
     // yuyv is 2 bytes per pixel. step through every pixel pair.
     unsigned char *prgb = rgb_frame;
+    unsigned char *pyuv_last = last_yuv_frame;
     for (unsigned i = 0; i < width * height * 2; i += 4)
     {
+      *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
+      *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+      *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
+      *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
+      *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+      *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
+      if ((int)pyuv[i] - (int)pyuv_last[i] > motion_threshold_luminance ||
+          (int)pyuv_last[i] - (int)pyuv[i] > motion_threshold_luminance)
+        num_pixels_different++;
+      if ((int)pyuv[i+2] - (int)pyuv_last[i+2] > motion_threshold_luminance ||
+          (int)pyuv_last[i+2] - (int)pyuv[i+2] > motion_threshold_luminance)
+        num_pixels_different++;
+      
+      // this gives bgr images...
       /*
-      *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
-      *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+      *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+      *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
+      *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+      *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
       */
-      *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
-      *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
-      *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
+    }
+    memcpy(last_yuv_frame, pyuv, width * height * 2);
+    if (num_pixels_different > motion_threshold_count) // default: always true
+      *frame = rgb_frame;
+    else
+    {
+      *frame = NULL; // not enough luminance change
+      release(buf.index); // let go of this image
     }
   }
   else
@@ -423,5 +445,11 @@ void Cam::set_control(uint32_t id, int val)
     perror("unable to set control");
     throw std::runtime_error("unable to set control");
   }
+}
+
+void Cam::set_motion_thresholds(int lum, int count)
+{
+  motion_threshold_luminance = lum;
+  motion_threshold_count = count;
 }
 

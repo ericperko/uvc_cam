@@ -61,9 +61,10 @@ public:
   int grab(unsigned char **frame, uint32_t &bytes_used);
   void release(unsigned buf_idx);
   bool set_auto_white_balance(bool on);
+  void set_motion_thresholds(int lum, int count);
 private:
   std::string device;
-  int fd;
+  int fd, motion_threshold_luminance, motion_threshold_count;
   unsigned width, height, fps;
   v4l2_format fmt;
   v4l2_capability cap;
@@ -74,7 +75,7 @@ private:
   static const unsigned NUM_BUFFER = 4;
   void *mem[NUM_BUFFER];
   unsigned buf_length;
-  unsigned char *rgb_frame;
+  unsigned char *rgb_frame, *last_yuv_frame;
   void set_control(uint32_t id, int val);
 
   /*------------------------- new camera class controls ---------------------*/
