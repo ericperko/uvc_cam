@@ -19,15 +19,6 @@ void sigint_handler(int)
   done = true;
 }
 
-void vec_append(std::vector<uint8_t> *vec, uint8_t *data, uint32_t len)
-{
-  uint32_t orig_size = vec->size();
-  printf("orig_size = %d\n", orig_size);
-  vec->resize(orig_size + len);
-  memcpy(&(*vec)[orig_size], data, len);
-  printf("final size = %d\n", orig_size + len);
-}
-
 void logfilename(char *buf, uint32_t buf_len)
 {
   time_t t;
@@ -36,21 +27,8 @@ void logfilename(char *buf, uint32_t buf_len)
   strftime(buf, buf_len, "videos/%Y%m%d-%H%M%S.ogg", lt);
 }
 
-int main(int argc, char **argv)
+void start_encoder(th_enc_ctx **context, ogg_stream_state *oggss, FILE **f)
 {
-  if (argc != 2)
-  {
-    fprintf(stderr, "usage: record_theora DEVICE\n");
-    return 1;
-  }
-  signal(SIGINT, sigint_handler);
-
-  uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_YUYV, WIDTH, HEIGHT, FPS);
-  ros::Time t_prev(ros::Time::now());
-  int count = 0;
-  ogg_stream_state oggss;
-  ogg_page oggpage;
-
   th_info info;
   th_info_init(&info);
   info.frame_width  = info.pic_width  = WIDTH;
@@ -66,17 +44,12 @@ int main(int argc, char **argv)
   info.fps_denominator = 1;
   info.aspect_numerator = 1;
   info.aspect_denominator = 1;
-  /*
-  info.version_major = 1;
-  info.version_minor = 1;
-  info.version_subminor = 0;
-  */
   
-  th_enc_ctx *context = th_encode_alloc(&info);
-  if (!context)
+  *context = th_encode_alloc(&info);
+  if (!(*context))
   {
     fprintf(stderr, "couldn't initialize the encoder\n");
-    return 1;
+    exit(1);
   }
   else
     printf("encoder ok\n");
@@ -86,37 +59,75 @@ int main(int argc, char **argv)
   th_comment_add(&comment, (char *)"created by the uvc_cam ROS package");
   comment.vendor = (char *)"uvc_cam ROS package";
 
-  srand(time(NULL));
-  ogg_stream_init(&oggss, rand());
+  ogg_stream_init(oggss, rand());
 
-  std::vector<uint8_t> oggheader;
-  ogg_packet oggpacket;
-  while (th_encode_flushheader(context, &comment, &oggpacket) > 0)
+  char fn[100];
+  logfilename(fn, sizeof(fn));
+  *f = fopen(fn, "w");
+  if (!(*f))
   {
-    ogg_stream_packetin(&oggss, &oggpacket);
-    while (ogg_stream_pageout(&oggss, &oggpage))
+    fprintf(stderr, "couldn't open output file\n");
+    exit(1);
+  }
+
+  ogg_packet oggpacket;
+  ogg_page oggpage;
+  while (th_encode_flushheader(*context, &comment, &oggpacket) > 0)
+  {
+    ogg_stream_packetin(oggss, &oggpacket);
+    while (ogg_stream_pageout(oggss, &oggpage))
     {
-      vec_append(&oggheader, oggpage.header, oggpage.header_len);
-      vec_append(&oggheader, oggpage.body, oggpage.body_len);
+      fwrite(oggpage.header, oggpage.header_len, 1, *f);
+      fwrite(oggpage.body  , oggpage.body_len  , 1, *f);
     }
   }
 
   // finish the headers, to begin a new page
-  while (ogg_stream_flush(&oggss, &oggpage) > 0)
+  while (ogg_stream_flush(oggss, &oggpage) > 0)
   {
-    vec_append(&oggheader, oggpage.header, oggpage.header_len);
-    vec_append(&oggheader, oggpage.body, oggpage.body_len);
+    fwrite(oggpage.header, oggpage.header_len, 1, *f);
+    fwrite(oggpage.body  , oggpage.body_len  , 1, *f);
   }
+}
 
-  char fn[100];
-  logfilename(fn, sizeof(fn));
-  FILE *ogg_file = fopen(fn, "w");
-  if (!ogg_file)
+void shutdown_encoder(th_enc_ctx **context, ogg_stream_state *oggss, FILE **f)
+{
+  printf("flushing previous log...\n");
+  ogg_page oggpage;
+  while (ogg_stream_flush(oggss, &oggpage) > 0)
   {
-    fprintf(stderr, "couldn't open output file\n");
+    fwrite(oggpage.header, oggpage.header_len, 1, *f);
+    fwrite(oggpage.body  , oggpage.body_len  , 1, *f);
+  }
+  fclose(*f);
+  th_encode_free(*context);
+  ogg_stream_clear(oggss);
+  *f = NULL;
+  *context = NULL;
+}
+
+int main(int argc, char **argv)
+{
+  if (argc != 2)
+  {
+    fprintf(stderr, "usage: record_theora DEVICE\n");
     return 1;
   }
-  fwrite(&oggheader[0], oggheader.size(), 1, ogg_file);
+  signal(SIGINT, sigint_handler);
+  srand(time(NULL));
+
+  uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_YUYV, WIDTH, HEIGHT, FPS);
+  cam.set_control(0x9a0901, 3); // aperture priority exposure mode
+  cam.set_control(0x9a0903, 1); // auto exposure
+  ros::Time t_prev(ros::Time::now());
+  int count = 0;
+  ogg_stream_state oggss;
+  ogg_page oggpage;
+  ogg_packet oggpacket;
+
+  th_enc_ctx *context;
+  FILE *ogg_file;
+  start_encoder(&context, &oggss, &ogg_file);
 
   th_img_plane planes[3];
 
@@ -140,24 +151,9 @@ int main(int argc, char **argv)
     ros::Duration log_duration(t - log_start);
     if (log_duration.toSec() > 60*60) // new log every hour
     {
-      printf("flushing previous log...\n");
+      shutdown_encoder(&context, &oggss, &ogg_file);
       log_start = t;
-      while (ogg_stream_flush(&oggss, &oggpage) > 0)
-      {
-        fwrite(oggpage.header, oggpage.header_len, 1, ogg_file);
-        fwrite(oggpage.body  , oggpage.body_len  , 1, ogg_file);
-      }
-      fclose(ogg_file);
-      char fn[100];
-      logfilename(fn, sizeof(fn));
-      printf("starting new log %s...\n", fn);
-      FILE *ogg_file = fopen(fn, "w");
-      if (!ogg_file)
-      {
-        fprintf(stderr, "couldn't open output file\n");
-        return 1;
-      }
-      fwrite(&oggheader[0], oggheader.size(), 1, ogg_file);
+      start_encoder(&context, &oggss, &ogg_file);
     }
 
     uint8_t *frame = NULL;
@@ -212,15 +208,7 @@ int main(int argc, char **argv)
       }
     }
   }
-  th_encode_free(context);
-
-  while (ogg_stream_flush(&oggss, &oggpage) > 0)
-  {
-    fwrite(oggpage.header, oggpage.header_len, 1, ogg_file);
-    fwrite(oggpage.body  , oggpage.body_len  , 1, ogg_file);
-  }
-
-  fclose(ogg_file);
+  shutdown_encoder(&context, &oggss, &ogg_file);
 
   return 0;
 }

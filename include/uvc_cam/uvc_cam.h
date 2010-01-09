@@ -62,6 +62,7 @@ public:
   void release(unsigned buf_idx);
   bool set_auto_white_balance(bool on);
   void set_motion_thresholds(int lum, int count);
+  void set_control(uint32_t id, int val);
 private:
   std::string device;
   int fd, motion_threshold_luminance, motion_threshold_count;
@@ -76,7 +77,6 @@ private:
   void *mem[NUM_BUFFER];
   unsigned buf_length;
   unsigned char *rgb_frame, *last_yuv_frame;
-  void set_control(uint32_t id, int val);
 
   /*------------------------- new camera class controls ---------------------*/
   CSU32 V4L2_CTRL_CLASS_USER_NEW = 0x00980000;
