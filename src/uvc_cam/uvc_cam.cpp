@@ -93,7 +93,7 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   fmt.fmt.pix.width = width;
   fmt.fmt.pix.height = height;
-  if (mode == MODE_RGB) // grab in yuyv, we'll convert later
+  if (mode == MODE_RGB || mode == MODE_YUYV) // we'll convert later
     fmt.fmt.pix.pixelformat = 'Y' | ('U' << 8) | ('Y' << 16) | ('V' << 24);
   else
     fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG; 
@@ -411,7 +411,11 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
       release(buf.index); // let go of this image
     }
   }
-  else
+  else if (mode == MODE_YUYV)
+  {
+    *frame = (uint8_t *)mem[buf.index];
+  }
+  else // mode == MODE_JPEG
   {
     //if (bytes_used > 100)
       *frame = (unsigned char *)mem[buf.index];

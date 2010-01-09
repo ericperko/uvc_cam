@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.4.6)
 include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 include($ENV{ROS_ROOT}/core/rosbuild/FindPkgConfig.cmake)
 
-set(ROS_BUILD_TYPE Release)
+set(ROS_BUILD_TYPE Debug)
 
 rosbuild_init(uvc_cam)
 
@@ -29,6 +29,9 @@ target_link_libraries(dump uvc_cam)
 
 rosbuild_add_executable(sender src/sender.cpp)
 target_link_libraries(sender uvc_cam)
+
+rospack_add_executable(record_theora src/record_theora.cpp)
+target_link_libraries(record_theora theora theoraenc theoradec uvc_cam)
 
 rosbuild_add_executable(dump_send src/dump/dump_send.cpp src/dump/avilib.c)
 target_link_libraries(dump_send uvc_cam)
