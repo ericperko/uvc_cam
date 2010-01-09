@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <cstdio>
 #include <csignal>
@@ -7,13 +8,32 @@
 #include <theora/codec.h>
 #include <theora/theoraenc.h>
 #include <ogg/ogg.h>
+#include <vector>
+#include <string>
 
-const unsigned WIDTH = 960, HEIGHT = 720, FPS = 15;
+const unsigned WIDTH = 960, HEIGHT = 720, FPS = 5;
 static bool done = false;
 
 void sigint_handler(int)
 {
   done = true;
+}
+
+void vec_append(std::vector<uint8_t> *vec, uint8_t *data, uint32_t len)
+{
+  uint32_t orig_size = vec->size();
+  printf("orig_size = %d\n", orig_size);
+  vec->resize(orig_size + len);
+  memcpy(&(*vec)[orig_size], data, len);
+  printf("final size = %d\n", orig_size + len);
+}
+
+void logfilename(char *buf, uint32_t buf_len)
+{
+  time_t t;
+  time(&t);
+  struct tm *lt = localtime(&t);
+  strftime(buf, buf_len, "videos/%Y%m%d-%H%M%S.ogg", lt);
 }
 
 int main(int argc, char **argv)
@@ -24,13 +44,6 @@ int main(int argc, char **argv)
     return 1;
   }
   signal(SIGINT, sigint_handler);
-
-  FILE *ogg_file = fopen("test.ogg", "w");
-  if (!ogg_file)
-  {
-    fprintf(stderr, "couldn't open output file\n");
-    return 1;
-  }
 
   uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_YUYV, WIDTH, HEIGHT, FPS);
   ros::Time t_prev(ros::Time::now());
@@ -47,9 +60,9 @@ int main(int argc, char **argv)
   info.pixel_fmt = TH_PF_420;
   //info.target_bitrate = 800000;
   info.target_bitrate = 0;
-  info.quality = 20;
+  info.quality = 30;
   info.keyframe_granule_shift = 6; // max keyframe interval = 1 << 6
-  info.fps_numerator = 15;
+  info.fps_numerator = FPS;
   info.fps_denominator = 1;
   info.aspect_numerator = 1;
   info.aspect_denominator = 1;
@@ -76,22 +89,34 @@ int main(int argc, char **argv)
   srand(time(NULL));
   ogg_stream_init(&oggss, rand());
 
+  std::vector<uint8_t> oggheader;
   ogg_packet oggpacket;
   while (th_encode_flushheader(context, &comment, &oggpacket) > 0)
   {
     ogg_stream_packetin(&oggss, &oggpacket);
     while (ogg_stream_pageout(&oggss, &oggpage))
     {
-      fwrite(oggpage.header, oggpage.header_len, 1, ogg_file);
-      fwrite(oggpage.body  , oggpage.body_len  , 1, ogg_file);
+      vec_append(&oggheader, oggpage.header, oggpage.header_len);
+      vec_append(&oggheader, oggpage.body, oggpage.body_len);
     }
   }
+
   // finish the headers, to begin a new page
   while (ogg_stream_flush(&oggss, &oggpage) > 0)
   {
-    fwrite(oggpage.header, oggpage.header_len, 1, ogg_file);
-    fwrite(oggpage.body  , oggpage.body_len  , 1, ogg_file);
+    vec_append(&oggheader, oggpage.header, oggpage.header_len);
+    vec_append(&oggheader, oggpage.body, oggpage.body_len);
   }
+
+  char fn[100];
+  logfilename(fn, sizeof(fn));
+  FILE *ogg_file = fopen(fn, "w");
+  if (!ogg_file)
+  {
+    fprintf(stderr, "couldn't open output file\n");
+    return 1;
+  }
+  fwrite(&oggheader[0], oggheader.size(), 1, ogg_file);
 
   th_img_plane planes[3];
 
@@ -107,14 +132,39 @@ int main(int argc, char **argv)
   planes[1].data = new uint8_t[WIDTH*HEIGHT/4];
   planes[2].data = new uint8_t[WIDTH*HEIGHT/4];
 
+  ros::Time log_start(ros::Time::now());
   while (!done)
   {
+    // see if it's time to start a new logfile
+    ros::Time t(ros::Time::now());
+    ros::Duration log_duration(t - log_start);
+    if (log_duration.toSec() > 60*60) // new log every hour
+    {
+      printf("flushing previous log...\n");
+      log_start = t;
+      while (ogg_stream_flush(&oggss, &oggpage) > 0)
+      {
+        fwrite(oggpage.header, oggpage.header_len, 1, ogg_file);
+        fwrite(oggpage.body  , oggpage.body_len  , 1, ogg_file);
+      }
+      fclose(ogg_file);
+      char fn[100];
+      logfilename(fn, sizeof(fn));
+      printf("starting new log %s...\n", fn);
+      FILE *ogg_file = fopen(fn, "w");
+      if (!ogg_file)
+      {
+        fprintf(stderr, "couldn't open output file\n");
+        return 1;
+      }
+      fwrite(&oggheader[0], oggheader.size(), 1, ogg_file);
+    }
+
     uint8_t *frame = NULL;
     uint32_t bytes_used;
     int buf_idx = cam.grab(&frame, bytes_used);
     if (count++ % 30 == 0)
     {
-      ros::Time t(ros::Time::now());
       ros::Duration d(t - t_prev);
       printf("%.1f fps\n", 30.0 / d.toSec());
       t_prev = t;
