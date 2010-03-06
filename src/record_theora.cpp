@@ -11,7 +11,7 @@
 #include <vector>
 #include <string>
 
-const unsigned WIDTH = 960, HEIGHT = 720, FPS = 5;
+const unsigned WIDTH = 640, HEIGHT = 480, FPS = 30;
 static bool done = false;
 
 void sigint_handler(int)
@@ -38,7 +38,7 @@ void start_encoder(th_enc_ctx **context, ogg_stream_state *oggss, FILE **f)
   info.pixel_fmt = TH_PF_420;
   //info.target_bitrate = 800000;
   info.target_bitrate = 0;
-  info.quality = 30;
+  info.quality = 50;
   info.keyframe_granule_shift = 6; // max keyframe interval = 1 << 6
   info.fps_numerator = FPS;
   info.fps_denominator = 1;

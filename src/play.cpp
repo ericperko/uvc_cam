@@ -2,37 +2,23 @@
 #include <cstdio>
 #include <cassert>
 #include <ros/time.h>
-#include "uvc_cam/uvc_cam.h"
 #include "SDL/SDL.h"
 
-const unsigned WIDTH = 640, HEIGHT = 480, FPS = 30;
+const unsigned WIDTH = 640, HEIGHT = 480;
 
-void save_photo(uint8_t *frame)
+inline unsigned char saturate(float f)
 {
-  static int image_num = 0;
-  char fnbuf[500];
-  snprintf(fnbuf, sizeof(fnbuf), "image%06d.ppm", image_num++);
-  printf("saving %s\n", fnbuf);
-  FILE *f = fopen(fnbuf, "wb");
-  if (!f)
-  {
-    printf("couldn't open %s\n", fnbuf);
-    return;
-  }
-  fprintf(f, "P6\n%d %d\n255\n", WIDTH, HEIGHT);
-  fwrite(frame, 1, WIDTH * HEIGHT * 3, f);
-  fclose(f);
+  return (unsigned char)( f >= 255 ? 255 : (f < 0 ? 0 : f));
 }
 
 int main(int argc, char **argv)
 {
   if (argc != 2)
   {
-    fprintf(stderr, "usage: view DEVICE\n");
+    fprintf(stderr, "usage: play FILE\n");
     return 1;
   }
 
-  uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_RGB, WIDTH, HEIGHT, FPS);
   if (SDL_Init(SDL_INIT_VIDEO) < 0)
   {
     fprintf(stderr, "sdl init error: %s\n", SDL_GetError());
@@ -45,11 +31,35 @@ int main(int argc, char **argv)
   ros::Time t_prev(ros::Time::now());
   int count = 0;
   uint8_t *bgr_frame = new uint8_t[WIDTH*HEIGHT*3];
-  for (bool done = false; !done;)
+  uint8_t *yuv_frame = new uint8_t[WIDTH*HEIGHT*3];
+  FILE *f = fopen(argv[1],"r");
+  if (!f)
   {
-    unsigned char *frame = NULL;
-    uint32_t bytes_used;
-    int buf_idx = cam.grab(&frame, bytes_used);
+    fprintf(stderr, "couldn't open dump file\n");
+    return 1;
+  }
+  for (bool done = false; !done && !feof(f);)
+  {
+    double t;
+    if (1 != fread(&t, sizeof(double), 1, f))
+      break;
+    printf("frame time: %15f\n", t);
+    if (1 != fread(yuv_frame, WIDTH*HEIGHT*2, 1, f))
+      break;
+    uint8_t *prgb = bgr_frame;
+    uint8_t *pyuv = yuv_frame;
+    for (uint32_t i = 0; i < WIDTH*HEIGHT*2; i += 4)
+    {
+      *prgb++ = saturate(pyuv[i]+1.772f  *(pyuv[i+1]-128));
+      *prgb++ = saturate(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+      *prgb++ = saturate(pyuv[i]+1.402f  *(pyuv[i+3]-128));
+
+      *prgb++ = saturate(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
+      *prgb++ = saturate(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+      *prgb++ = saturate(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
+    }
+    memcpy(surf->pixels, bgr_frame, WIDTH*HEIGHT*3);
+
     if (count++ % 30 == 0)
     {
       ros::Time t(ros::Time::now());
@@ -57,19 +67,7 @@ int main(int argc, char **argv)
       printf("%.1f fps\n", 30.0 / d.toSec());
       t_prev = t;
     }
-    if (frame)
-    {
-      for (uint32_t y = 0; y < HEIGHT; y++)
-        for (uint32_t x = 0; x < WIDTH; x++)
-        {
-          uint8_t *p = frame     + y * WIDTH * 3 + x * 3;
-          uint8_t *q = bgr_frame + y * WIDTH * 3 + x * 3;
-          q[0] = p[2]; q[1] = p[1]; q[2] = p[0];
-        }
-      memcpy(surf->pixels, bgr_frame, WIDTH*HEIGHT*3);
-      cam.release(buf_idx);
-    }
-    //usleep(1000);
+    //usleep(100000);
     SDL_UpdateRect(surf, 0, 0, WIDTH, HEIGHT);
     SDL_Event event;
     while (SDL_PollEvent(&event))
@@ -80,7 +78,6 @@ int main(int argc, char **argv)
           switch(event.key.keysym.sym)
           {
             case SDLK_ESCAPE: done = true; break;
-            case SDLK_SPACE:  save_photo(frame); break;
             default: break;
           }
           break;

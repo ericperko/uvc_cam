@@ -160,16 +160,20 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
     set_control(10094851, 0);
     set_control(10094849, 1);
     //set_control(0x9a9010, 100);
-    set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 300);
-    set_control(V4L2_CID_BRIGHTNESS, 140);
+    set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 150);
+    set_control(V4L2_CID_BRIGHTNESS, 155);
     set_control(V4L2_CID_CONTRAST, 40);
+    printf("set contrast\n");
     //set_control(V4L2_CID_WHITE_BALANCE_TEMP_AUTO_OLD, 0);
-    set_control(9963788, 0); // auto white balance
-    set_control(9963802, 1000); // color temperature
-    set_control(9963800, 2);  // power line frequency to 60 hz
+    set_control(9963788, 1); // auto white balance
+    //set_control(9963802, 500); // color temperature
+    //set_control(9963800, 2);  // power line frequency to 60 hz
     set_control(9963795, 200); // gain
-    set_control(9963803, 100); // sharpness
-    set_control(9963778, 50); // saturation
+    set_control(9963803, 140); // sharpness
+    set_control(9963778, 30); // saturation
+
+    //set_control(0x9a0901, 1); // aperture priority exposure mode
+    //set_control(0x9a0903, 1); // auto exposure
   }
   catch (std::runtime_error &ex)
   {
