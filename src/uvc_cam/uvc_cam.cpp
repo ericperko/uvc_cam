@@ -160,8 +160,8 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
     set_control(10094851, 0);
     set_control(10094849, 1);
     //set_control(0x9a9010, 100);
-    set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 600);
-    set_control(V4L2_CID_BRIGHTNESS, 155);
+    set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 500);
+    set_control(V4L2_CID_BRIGHTNESS, 135);
     set_control(V4L2_CID_CONTRAST, 40);
     printf("set contrast\n");
     //set_control(V4L2_CID_WHITE_BALANCE_TEMP_AUTO_OLD, 0);

@@ -34,7 +34,10 @@ target_link_libraries(play uvc_cam)
 rosbuild_add_executable(sender src/sender.cpp)
 target_link_libraries(sender uvc_cam)
 
-rospack_add_executable(record_theora src/record_theora.cpp)
+rosbuild_add_executable(senderIT src/senderIT.cpp)
+target_link_libraries(senderIT uvc_cam)
+
+rosbuild_add_executable(record_theora src/record_theora.cpp)
 target_link_libraries(record_theora theora theoraenc theoradec uvc_cam)
 
 rosbuild_add_executable(dump_send src/dump/dump_send.cpp src/dump/avilib.c)

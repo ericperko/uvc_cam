@@ -27,12 +27,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+// Modified Apr 6, 2010 by Adam Leeper - changed to use "image_transport"
+
 #include <cstdio>
 #include <ros/ros.h>
 #include <ros/time.h>
 #include "uvc_cam/uvc_cam.h"
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/image_encodings.h"
+
+#include <image_transport/image_transport.h>
+#include <opencv/cvwimage.h>
+#include <opencv/highgui.h>
+#include <cv_bridge/CvBridge.h>
 
 int main(int argc, char **argv)
 {
@@ -51,7 +58,10 @@ int main(int argc, char **argv)
   n_private.param("motion_threshold_luminance", modetect_lum, 100); 
   n_private.param("motion_threshold_count", modetect_count, -1); 
 
-  ros::Publisher pub = n.advertise<sensor_msgs::Image>(out_topic.c_str(), 1);
+  image_transport::ImageTransport it(n);
+  image_transport::Publisher pub = it.advertise(out_topic.c_str(), 1);
+
+  //ros::Publisher pub = n.advertise<sensor_msgs::Image>(out_topic.c_str(), 1);
   ROS_INFO("opening uvc_cam at %dx%d, %d fps", width, height, fps);
   uvc_cam::Cam cam(device.c_str(), uvc_cam::Cam::MODE_RGB, width, height, fps);
   cam.set_motion_thresholds(modetect_lum, modetect_count);
@@ -72,14 +82,22 @@ int main(int argc, char **argv)
     }
     if (frame)
     {
-      sensor_msgs::Image image; 
-      image.header.stamp = ros::Time::now();
-      image.encoding = sensor_msgs::image_encodings::RGB8;
-      image.height = height;
-      image.width = width;
-      image.step = 3 * width;
+      //cv::WImageBuffer3_b image( frame );
+      //cv::Mat data(height, width, CV_8UC1, frame, 3 * width);
+      IplImage *imageIpl = cvCreateImage(cvSize(640,480), 8, 3);
+      imageIpl->imageData = (char *)frame;
+      sensor_msgs::Image::Ptr image = sensor_msgs::CvBridge::cvToImgMsg( imageIpl, "bgr8");
 
-      image.set_data_size( image.step * image.height );
+      //sensor_msgs::Image image; 
+      
+      image->header.stamp = ros::Time::now();
+      image->encoding = sensor_msgs::image_encodings::RGB8;
+      image->height = height;
+      image->width = width;
+      image->step = 3 * width;
+
+      //image->set_data_size( image.step * image.height );
+      
       /*
       uint8_t* bgr = &(image.data[0]);
       for (uint32_t y = 0; y < height; y++)
@@ -91,7 +109,7 @@ int main(int argc, char **argv)
           q[0] = p[2]; q[1] = p[1]; q[2] = p[0];
         }
       */
-      memcpy(&image.data[0], frame, width * height * 3);
+      //memcpy(&image.data[0], frame, width * height * 3);
       pub.publish(image);
       cam.release(buf_idx);
     }

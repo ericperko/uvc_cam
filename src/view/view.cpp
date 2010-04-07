@@ -1,3 +1,4 @@
+#include <ros/ros.h>
 #include <unistd.h>
 #include <cstdio>
 #include <cassert>
@@ -5,7 +6,7 @@
 #include "uvc_cam/uvc_cam.h"
 #include "SDL/SDL.h"
 
-const unsigned WIDTH = 640, HEIGHT = 480, FPS = 30;
+unsigned WIDTH = 640, HEIGHT = 480, FPS = 30;
 
 void save_photo(uint8_t *frame)
 {
@@ -26,13 +27,27 @@ void save_photo(uint8_t *frame)
 
 int main(int argc, char **argv)
 {
-  if (argc != 2)
+  if (argc != 2 && argc != 4 && argc != 5)
   {
-    fprintf(stderr, "usage: view DEVICE\n");
+    fprintf(stderr, "usage: view DEVICE WIDTH HEIGHT\n");
     return 1;
   }
 
+  if(argc == 4)
+  {
+    WIDTH = atoi(argv[2]);
+    HEIGHT= atoi(argv[3]);
+  }
+  if(argc == 5)
+  {
+    WIDTH = atoi(argv[2]);
+    HEIGHT= atoi(argv[3]);
+    FPS = atoi(argv[4]);
+  }
+
+  ROS_INFO("opening camera device...");
   uvc_cam::Cam cam(argv[1], uvc_cam::Cam::MODE_RGB, WIDTH, HEIGHT, FPS);
+  ROS_INFO("\n\n\nsuccess!\n\n\n");
   if (SDL_Init(SDL_INIT_VIDEO) < 0)
   {
     fprintf(stderr, "sdl init error: %s\n", SDL_GetError());
