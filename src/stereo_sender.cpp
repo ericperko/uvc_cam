@@ -27,7 +27,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+// 
 // Modified Apr 6, 2010 by Adam Leeper - changed to use "image_transport"
+// A stereo version of the "sender" file
+//
 
 #include <cstdio>
 #include <ros/ros.h>
@@ -47,10 +50,12 @@ int main(int argc, char **argv)
   ros::NodeHandle n;
   ros::NodeHandle n_private("~");
 
-  std::string device;
-  std::string out_topic;
-  n_private.param<std::string>("device", device, "/dev/video0");
-  n_private.param<std::string>("topic", out_topic, "/camera/image");
+  std::string deviceL, deviceR;
+  std::string stereoName, imageName;
+  n_private.param<std::string>("deviceL", deviceL, "/dev/video0");
+  n_private.param<std::string>("deviceR", deviceR, "/dev/video1");
+  n_private.param<std::string>("stereoName", stereoName,  "/my_stereo");
+  n_private.param<std::string>("imageName", imageName,    "image_raw");
   int width, height, fps, modetect_lum, modetect_count;
   n_private.param("width", width, 640);
   n_private.param("height", height, 480);
@@ -58,22 +63,31 @@ int main(int argc, char **argv)
   n_private.param("motion_threshold_luminance", modetect_lum, 100); 
   n_private.param("motion_threshold_count", modetect_count, -1); 
 
-  image_transport::ImageTransport it(n);
-  image_transport::Publisher pub = it.advertise(out_topic.c_str(), 1);
+  std::string left = stereoName + "/left/" + imageName;
+  std::string right = stereoName + "/right/" + imageName;
+  image_transport::ImageTransport itL(n);
+  image_transport::Publisher pubL = itL.advertise(left.c_str(), 1);
+  image_transport::ImageTransport itR(n);
+  image_transport::Publisher pubR = itR.advertise(right.c_str(), 1);
 
   //ros::Publisher pub = n.advertise<sensor_msgs::Image>(out_topic.c_str(), 1);
   ROS_INFO("opening uvc_cam at %dx%d, %d fps", width, height, fps);
-  uvc_cam::Cam cam(device.c_str(), uvc_cam::Cam::MODE_RGB, width, height, fps);
-  cam.set_motion_thresholds(modetect_lum, modetect_count);
-  IplImage *imageIpl = cvCreateImageHeader(cvSize(640,480), 8, 3);
+  uvc_cam::Cam camL(deviceL.c_str(), uvc_cam::Cam::MODE_RGB, width, height, fps);
+  uvc_cam::Cam camR(deviceR.c_str(), uvc_cam::Cam::MODE_RGB, width, height, fps);
+  camL.set_motion_thresholds(modetect_lum, modetect_count);
+  camR.set_motion_thresholds(modetect_lum, modetect_count);
+  
+  IplImage *imageIplL = cvCreateImageHeader(cvSize(640,480), 8, 3);
+  IplImage *imageIplR = cvCreateImageHeader(cvSize(640,480), 8, 3);
 
   ros::Time t_prev(ros::Time::now());
   int count = 0, skip_count = 0;
   while (n.ok())
   {
-    unsigned char *frame = NULL;
-    uint32_t bytes_used;
-    int buf_idx = cam.grab(&frame, bytes_used);
+    unsigned char *frameL, *frameR = NULL;
+    uint32_t bytes_usedL, bytes_usedR;
+    int buf_idxL = camL.grab(&frameL, bytes_usedL);
+    int buf_idxR = camR.grab(&frameR, bytes_usedR);
     if (count++ % fps == 0)
     {
       ros::Time t(ros::Time::now());
@@ -81,20 +95,20 @@ int main(int argc, char **argv)
       ROS_INFO("%.1f fps skip %d", (double)fps / d.toSec(), skip_count);
       t_prev = t;
     }
-    if (frame)
+    if (frameL != NULL && frameR != NULL)
     {
-      //cv::WImageBuffer3_b image( frame );
-      //cv::Mat data(height, width, CV_8UC1, frame, 3 * width);
-      imageIpl->imageData = (char *)frame;
-      sensor_msgs::Image::Ptr image = sensor_msgs::CvBridge::cvToImgMsg( imageIpl, "bgr8");
+      imageIplL->imageData = (char *)frameL;
+      imageIplR->imageData = (char *)frameR;
+      sensor_msgs::Image::Ptr imageL = sensor_msgs::CvBridge::cvToImgMsg( imageIplL, "bgr8");
+      sensor_msgs::Image::Ptr imageR = sensor_msgs::CvBridge::cvToImgMsg( imageIplR, "bgr8");
 
       //sensor_msgs::Image image; 
       
-      image->header.stamp = ros::Time::now();
-      image->encoding = sensor_msgs::image_encodings::RGB8;
-      image->height = height;
-      image->width = width;
-      image->step = 3 * width;
+      imageL->header.stamp = imageR->header.stamp = ros::Time::now();
+      imageL->encoding = imageR->encoding = sensor_msgs::image_encodings::RGB8;
+      imageL->height = imageR->height = height;
+      imageL->width = imageR->width = width;
+      imageL->step = imageR->step = 3 * width;
 
       //image->set_data_size( image.step * image.height );
       
@@ -110,8 +124,10 @@ int main(int argc, char **argv)
         }
       */
       //memcpy(&image.data[0], frame, width * height * 3);
-      pub.publish(image);
-      cam.release(buf_idx);
+      pubL.publish(imageL);
+      pubR.publish(imageR);
+      camL.release(buf_idxL);
+      camR.release(buf_idxR);
     }
     else
       skip_count++;

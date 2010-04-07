@@ -37,6 +37,9 @@ target_link_libraries(sender uvc_cam)
 rosbuild_add_executable(senderIT src/senderIT.cpp)
 target_link_libraries(senderIT uvc_cam)
 
+rosbuild_add_executable(senderStereo src/stereo_sender.cpp)
+target_link_libraries(senderStereo uvc_cam)
+
 rosbuild_add_executable(record_theora src/record_theora.cpp)
 target_link_libraries(record_theora theora theoraenc theoradec uvc_cam)
 
