@@ -7,7 +7,6 @@
   <review status="unreviewed" notes=""/>
   <depend package="roscpp"/>
   <depend package="sensor_msgs"/>
-  <depend package="sdlgl"/>
   <depend package="image_transport"/>
   <depend package="opencv2"/>
   <depend package="cv_bridge"/>
