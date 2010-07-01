@@ -18,6 +18,7 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
   motion_threshold_luminance(100), motion_threshold_count(-1),
   width(_width), height(_height), fps(_fps), rgb_frame(NULL)
 {
+printf("I AM A PRETTY PRETTY PRINCESSSSSS\n");
   printf("opening %s\n", _device);
   if ((fd = open(_device, O_RDWR)) == -1)
     throw std::runtime_error("couldn't open " + device);
@@ -157,21 +158,22 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
   try 
   {
     //set_control(V4L2_CID_EXPOSURE_AUTO_NEW, 2);
-    set_control(10094851, 0);
-    set_control(10094849, 1);
+   // set_control(10094851, 0);
+   // set_control(10094849, 1);
     //set_control(0x9a9010, 100);
-    set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 500);
-    set_control(V4L2_CID_BRIGHTNESS, 135);
-    set_control(V4L2_CID_CONTRAST, 40);
-    printf("set contrast\n");
+  //  set_control(V4L2_CID_EXPOSURE_ABSOLUTE_NEW, 500);
+ //   set_control(V4L2_CID_BRIGHTNESS, 135);
+ //   set_control(V4L2_CID_CONTRAST, 40);
+ //   printf("set contrast\n");
     //set_control(V4L2_CID_WHITE_BALANCE_TEMP_AUTO_OLD, 0);
-    set_control(9963788, 1); // auto white balance
+  //  set_control(9963788, 1); // auto white balance
     //set_control(9963802, 500); // color temperature
     //set_control(9963800, 2);  // power line frequency to 60 hz
-    set_control(9963795, 120); // gain
-    set_control(9963803, 140); // sharpness
-    set_control(9963778, 45); // saturation
-
+//    set_control(9963795, 120); // gain
+ //   set_control(9963803, 140); // sharpness
+ //   set_control(9963778, 45); // saturation
+ //    set_control(0x9a0901, 1); //exposure mode
+   //  set_control(0x9a0902, 8);
     //set_control(0x9a0901, 1); // aperture priority exposure mode
     //set_control(0x9a0903, 1); // auto exposure
   }
@@ -389,13 +391,7 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
       *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
-      if ((int)pyuv[i] - (int)pyuv_last[i] > motion_threshold_luminance ||
-          (int)pyuv_last[i] - (int)pyuv[i] > motion_threshold_luminance)
-        num_pixels_different++;
-      if ((int)pyuv[i+2] - (int)pyuv_last[i+2] > motion_threshold_luminance ||
-          (int)pyuv_last[i+2] - (int)pyuv[i+2] > motion_threshold_luminance)
-        num_pixels_different++;
-      
+    
       // this gives bgr images...
       /*
       *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
@@ -438,14 +434,13 @@ void Cam::set_control(uint32_t id, int val)
 {
   v4l2_control c;
   c.id = id;
-
   if (ioctl(fd, VIDIOC_G_CTRL, &c) == 0)
   {
-    printf("current value of %d is %d\n", id, c.value);
-    /*
-    perror("unable to get control");
+    printf("current value of %x is %d\n", id, c.value);
+  }
+	else{
+		perror("unable to get control");
     throw std::runtime_error("unable to get control");
-    */
   }
   c.value = val;
   if (ioctl(fd, VIDIOC_S_CTRL, &c) < 0)
