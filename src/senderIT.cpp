@@ -51,12 +51,10 @@ int main(int argc, char **argv)
   std::string out_topic;
   n_private.param<std::string>("device", device, "/dev/video0");
   n_private.param<std::string>("topic", out_topic, "/camera/image");
-  int width, height, fps, modetect_lum, modetect_count;
+  int width, height, fps;
   n_private.param("width", width, 640);
   n_private.param("height", height, 480);
   n_private.param("fps", fps, 30);
-  n_private.param("motion_threshold_luminance", modetect_lum, 100); 
-  n_private.param("motion_threshold_count", modetect_count, -1); 
 
   image_transport::ImageTransport it(n);
   image_transport::Publisher pub = it.advertise(out_topic.c_str(), 1);
@@ -64,7 +62,6 @@ int main(int argc, char **argv)
   //ros::Publisher pub = n.advertise<sensor_msgs::Image>(out_topic.c_str(), 1);
   ROS_INFO("opening uvc_cam at %dx%d, %d fps", width, height, fps);
   uvc_cam::Cam cam(device.c_str(), uvc_cam::Cam::MODE_RGB, width, height, fps);
-  cam.set_motion_thresholds(modetect_lum, modetect_count);
   IplImage *imageIpl = cvCreateImageHeader(cvSize(640,480), 8, 3);
 
   ros::Time t_prev(ros::Time::now());

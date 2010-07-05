@@ -14,11 +14,8 @@ using std::string;
 using namespace uvc_cam;
 
 Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
-: mode(_mode), device(_device),
-  motion_threshold_luminance(100), motion_threshold_count(-1),
-  width(_width), height(_height), fps(_fps), rgb_frame(NULL)
+: mode(_mode), device(_device), width(_width), height(_height), fps(_fps), rgb_frame(NULL)
 {
-printf("I AM A PRETTY PRETTY PRINCESSSSSS\n");
   printf("opening %s\n", _device);
   if ((fd = open(_device, O_RDWR)) == -1)
     throw std::runtime_error("couldn't open " + device);
@@ -403,13 +400,7 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
       */
     }
     memcpy(last_yuv_frame, pyuv, width * height * 2);
-    if (num_pixels_different > motion_threshold_count) // default: always true
-      *frame = rgb_frame;
-    else
-    {
-      *frame = NULL; // not enough luminance change
-      release(buf.index); // let go of this image
-    }
+    *frame = rgb_frame;
   }
   else if (mode == MODE_YUYV)
   {
@@ -448,11 +439,5 @@ void Cam::set_control(uint32_t id, int val)
     perror("unable to set control");
     throw std::runtime_error("unable to set control");
   }
-}
-
-void Cam::set_motion_thresholds(int lum, int count)
-{
-  motion_threshold_luminance = lum;
-  motion_threshold_count = count;
 }
 

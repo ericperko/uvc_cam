@@ -2,7 +2,7 @@
   <description>A node and utilities for webcams supporting the uvcvideo driver (e.g. Logitech cameras and many others).
 
   Package is GPL since some of its code is adapted from GPL programs such as guvcview</description>
-  <author>Morgan Quigley</author>
+  <author>Morgan Quigley, Eric Perko</author>
   <license>GPL</license>
   <review status="unreviewed" notes=""/>
   <depend package="roscpp"/>

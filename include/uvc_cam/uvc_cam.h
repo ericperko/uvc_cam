@@ -61,11 +61,10 @@ public:
   int grab(unsigned char **frame, uint32_t &bytes_used);
   void release(unsigned buf_idx);
   bool set_auto_white_balance(bool on);
-  void set_motion_thresholds(int lum, int count);
   void set_control(uint32_t id, int val);
 private:
   std::string device;
-  int fd, motion_threshold_luminance, motion_threshold_count;
+  int fd;
   unsigned width, height, fps;
   v4l2_format fmt;
   v4l2_capability cap;
