@@ -14,11 +14,8 @@ using std::string;
 using namespace uvc_cam;
 
 Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
-: mode(_mode), device(_device),
-  motion_threshold_luminance(100), motion_threshold_count(-1),
-  width(_width), height(_height), fps(_fps), rgb_frame(NULL)
+: mode(_mode), device(_device), width(_width), height(_height), fps(_fps), rgb_frame(NULL)
 {
-
 /// opening device
 
   printf("opening %s\n", _device);
@@ -456,13 +453,7 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
       */
     }
     memcpy(last_yuv_frame, pyuv, width * height * 2);
-    if (num_pixels_different > motion_threshold_count) // default: always true
-      *frame = rgb_frame;
-    else
-    {
-      *frame = NULL; // not enough luminance change
-      release(buf.index); // let go of this image
-    }
+    *frame = rgb_frame;
   }
   else if (mode == MODE_YUYV)
   {

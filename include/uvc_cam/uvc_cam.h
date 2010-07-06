@@ -104,7 +104,7 @@ private:
 	std::vector <format_info> formats_supported;
 	std::vector <control_info> controls;
   std::string device;
-  int fd, motion_threshold_luminance, motion_threshold_count;
+  int fd;
   unsigned width, height, fps;
   v4l2_format fmt;
   v4l2_capability cap;
