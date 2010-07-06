@@ -177,7 +177,7 @@ public:
 		bool success = true;
 		IplImage *imageIpl = cvCreateImageHeader(cvSize(config_.width,config_.height), 8, 3);
 		try
-		  {
+		{
 			// Read data from the Camera
 			ROS_DEBUG_STREAM("[" << camera_name_ << "] reading data");
 			unsigned char *frame = NULL;
@@ -192,60 +192,60 @@ public:
 				cam_->release(buf_idx);
 			}
 			ROS_DEBUG_STREAM("[" << camera_name_ << "] read returned");
-		  }
+		}
 		catch (uvc_cam::Exception& e)
-		  {
+		{
 			ROS_WARN_STREAM("[" << camera_name_
-							<< "] Exception reading data: " << e.what());
+					<< "] Exception reading data: " << e.what());
 			success = false;
-		  }
+		}
 		return success;
 	}
 
-	  /** Publish camera stream topics
-	   *
-	   *  @pre image_ contains latest camera frame
-	   */
-	  void publish()
-	  {
-	    image_.header.frame_id = config_.frame_id;
+	/** Publish camera stream topics
+	 *
+	 *  @pre image_ contains latest camera frame
+	 */
+	void publish()
+	{
+		image_.header.frame_id = config_.frame_id;
 
-	    // get current CameraInfo data
-	    cam_info_ = cinfo_.getCameraInfo();
+		// get current CameraInfo data
+		cam_info_ = cinfo_.getCameraInfo();
 
-	    if (cam_info_.height != image_.height || cam_info_.width != image_.width)
-	      {
-	        // image size does not match: publish a matching uncalibrated
-	        // CameraInfo instead
-	        if (calibration_matches_)
-	          {
-	            // warn user once
-	            calibration_matches_ = false;
-	            ROS_WARN_STREAM("[" << camera_name_
-	                            << "] calibration does not match video mode "
-	                            << "(publishing uncalibrated data)");
-	          }
-	        cam_info_ = sensor_msgs::CameraInfo();
-	        cam_info_.height = image_.height;
-	        cam_info_.width = image_.width;
-	      }
-	    else if (!calibration_matches_)
-	      {
-	        // calibration OK now
-	        calibration_matches_ = true;
-	        ROS_INFO_STREAM("[" << camera_name_
-	                        << "] calibration matches video mode now");
-	      }
+		if (cam_info_.height != image_.height || cam_info_.width != image_.width)
+		{
+			// image size does not match: publish a matching uncalibrated
+			// CameraInfo instead
+			if (calibration_matches_)
+			{
+				// warn user once
+				calibration_matches_ = false;
+				ROS_WARN_STREAM("[" << camera_name_
+						<< "] calibration does not match video mode "
+						<< "(publishing uncalibrated data)");
+			}
+			cam_info_ = sensor_msgs::CameraInfo();
+			cam_info_.height = image_.height;
+			cam_info_.width = image_.width;
+		}
+		else if (!calibration_matches_)
+		{
+			// calibration OK now
+			calibration_matches_ = true;
+			ROS_INFO_STREAM("[" << camera_name_
+					<< "] calibration matches video mode now");
+		}
 
-	    cam_info_.header.frame_id = config_.frame_id;
-	    cam_info_.header.stamp = image_.header.stamp;
+		cam_info_.header.frame_id = config_.frame_id;
+		cam_info_.header.stamp = image_.header.stamp;
 
-	    // @todo log a warning if (filtered) time since last published
-	    // image is not reasonably close to configured frame_rate
+		// @todo log a warning if (filtered) time since last published
+		// image is not reasonably close to configured frame_rate
 
-	    // Publish via image_transport
-	    image_pub_.publish(image_, cam_info_);
-	  }
+		// Publish via image_transport
+		image_pub_.publish(image_, cam_info_);
+	}
 
 	/** Dynamic reconfigure callback
 	 *
