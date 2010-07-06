@@ -428,29 +428,27 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
   bytes_used = buf.bytesused;
   if (mode == MODE_RGB)
   {
-    int num_pixels_different = 0; // just look at the Y channel
     unsigned char *pyuv = (unsigned char *)mem[buf.index];
     // yuyv is 2 bytes per pixel. step through every pixel pair.
     unsigned char *prgb = rgb_frame;
     unsigned char *pyuv_last = last_yuv_frame;
     for (unsigned i = 0; i < width * height * 2; i += 4)
     {
-      *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
-      *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
-      *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
+    	// this gives rgb images
+//      *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
+//      *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+//      *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
+//      *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
+//      *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
+//      *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
     
       // this gives bgr images...
-      /*
       *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
       *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
       *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
-      */
     }
     memcpy(last_yuv_frame, pyuv, width * height * 2);
     *frame = rgb_frame;
