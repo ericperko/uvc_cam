@@ -18,19 +18,30 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
   motion_threshold_luminance(100), motion_threshold_count(-1),
   width(_width), height(_height), fps(_fps), rgb_frame(NULL)
 {
-printf("I AM A PRETTY PRETTY PRINCESSSSSS\n");
+
+/// opening device
+
   printf("opening %s\n", _device);
   if ((fd = open(_device, O_RDWR)) == -1)
     throw std::runtime_error("couldn't open " + device);
+
+/// clearing structs
+
   memset(&fmt, 0, sizeof(v4l2_format));
   memset(&cap, 0, sizeof(v4l2_capability));
+
+
+///grabbing and checking device capabilities
+
   if (ioctl(fd, VIDIOC_QUERYCAP, &cap) < 0)
     throw std::runtime_error("couldn't query " + device);
   if (!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE))
     throw std::runtime_error(device + " does not support capture");
   if (!(cap.capabilities & V4L2_CAP_STREAMING))
     throw std::runtime_error(device + " does not support streaming");
-  // enumerate formats
+  printf("capabilities %x\n",cap.capabilities);
+
+ /// enumerate formats
   v4l2_fmtdesc f;
   memset(&f, 0, sizeof(f));
   f.index = 0;
@@ -38,27 +49,45 @@ printf("I AM A PRETTY PRETTY PRINCESSSSSS\n");
   int ret;
   while ((ret = ioctl(fd, VIDIOC_ENUM_FMT, &f)) == 0)
   {
-    printf("pixfmt %d = '%4s' desc = '%s'\n",
+		format_info f_info;
+  	
+		printf("pixfmt %d = '%4s' desc = '%s'\n",
            f.index++, (char *)&f.pixelformat, f.description);
+
+		f_info.pixelformat=f.pixelformat;
+		memcpy(f_info.description,f.description,32);
+
     // enumerate frame sizes
     v4l2_frmsizeenum fsize;
     fsize.index = 0;
     fsize.pixel_format = f.pixelformat;
     while ((ret = ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &fsize)) == 0)
     {
+			size_info s_info;
+			s_info.type=fsize.type;
       fsize.index++;
       if (fsize.type == V4L2_FRMSIZE_TYPE_DISCRETE)
       {
+
         printf("  discrete: %ux%u:   ",
                fsize.discrete.width, fsize.discrete.height);
+
+				s_info.discrete.width= fsize.discrete.width;
+				s_info.discrete.height= fsize.discrete.height;
+
         // enumerate frame rates
+
         v4l2_frmivalenum fival;
         fival.index = 0;
         fival.pixel_format = f.pixelformat;
         fival.width = fsize.discrete.width;
         fival.height = fsize.discrete.height;
+
         while ((ret = ioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &fival)) == 0)
         {
+					frame_rate_info frmrate_info;
+					frmrate_info.type=fival.type;
+					frmrate_info.discrete=fival.discrete;
           fival.index++;
           if (fival.type == V4L2_FRMIVAL_TYPE_DISCRETE)
           {
@@ -67,30 +96,45 @@ printf("I AM A PRETTY PRETTY PRINCESSSSSS\n");
           }
           else
             printf("I only handle discrete frame intervals...\n");
+
+					s_info.frame_rates.push_back(frmrate_info);
         }
         printf("\n");
       }
       else if (fsize.type == V4L2_FRMSIZE_TYPE_CONTINUOUS)
       {
+				s_info.stepwise=fsize.stepwise;
         printf("  continuous: %ux%u to %ux%u\n",
                fsize.stepwise.min_width, fsize.stepwise.min_height,
                fsize.stepwise.max_width, fsize.stepwise.max_height);
+				//why is there no method of determining frame intervals for continuous frame sizes
       }
       else if (fsize.type == V4L2_FRMSIZE_TYPE_STEPWISE)
       {
+				s_info.stepwise=fsize.stepwise;
         printf("  stepwise: %ux%u to %ux%u step %ux%u\n",
                fsize.stepwise.min_width,  fsize.stepwise.min_height,
                fsize.stepwise.max_width,  fsize.stepwise.max_height,
                fsize.stepwise.step_width, fsize.stepwise.step_height);
+				//why is there no method of determining frame intervals for stepwise frame sizes				
       }
       else
       {
         printf("  fsize.type not supported: %d\n", fsize.type);
       }
-    }
+
+			f_info.sizes_supported.push_back(s_info);   
+		}		
+		formats_supported.push_back(f_info);
   }
   if (errno != EINVAL)
     throw std::runtime_error("error enumerating frame formats");
+
+
+	display_formats_supported();
+
+
+///set the video format
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   fmt.fmt.pix.width = width;
   fmt.fmt.pix.height = height;
@@ -103,11 +147,17 @@ printf("I AM A PRETTY PRETTY PRINCESSSSSS\n");
     throw std::runtime_error("couldn't set format");
   if (fmt.fmt.pix.width != width || fmt.fmt.pix.height != height)
     throw std::runtime_error("pixel format unavailable");
+
+//set the framerate and stream parameters
   streamparm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   streamparm.parm.capture.timeperframe.numerator = 1;
   streamparm.parm.capture.timeperframe.denominator = fps;
   if ((ret = ioctl(fd, VIDIOC_S_PARM, &streamparm)) < 0)
     throw std::runtime_error("unable to set framerate");
+
+
+
+//query all controls
   v4l2_queryctrl queryctrl;
   memset(&queryctrl, 0, sizeof(queryctrl));
   uint32_t i = V4L2_CID_BASE;
@@ -117,6 +167,8 @@ printf("I AM A PRETTY PRETTY PRINCESSSSSS\n");
     if ((ret = ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) == 0 &&
         !(queryctrl.flags & V4L2_CTRL_FLAG_DISABLED))
     {
+			control_info c_info;
+			c_info.ctrl.type=queryctrl.type;
       const char *ctrl_type = NULL;
       if (queryctrl.type == V4L2_CTRL_TYPE_INTEGER)
         ctrl_type = "int";
@@ -139,10 +191,11 @@ printf("I AM A PRETTY PRETTY PRINCESSSSSS\n");
         while (ioctl(fd, VIDIOC_QUERYMENU, &querymenu) == 0)
         {
           printf("    %d: %s\n", querymenu.index, querymenu.name);
+					c_info.menu_list.push_back(querymenu);
           querymenu.index++;
         }
       }
-
+			controls.push_back(c_info);
     }
     else if (errno != EINVAL)
       throw std::runtime_error("couldn't query control");
@@ -450,9 +503,57 @@ void Cam::set_control(uint32_t id, int val)
   }
 }
 
-void Cam::set_motion_thresholds(int lum, int count)
-{
-  motion_threshold_luminance = lum;
-  motion_threshold_count = count;
+std::vector <format_info> Cam::get_formats_supported(){
+	return formats_supported;
+}
+void Cam::display_formats_supported(){
+	printf("camera formats supported\n");
+	for(int i=0;i<formats_supported.size();i++){
+		unsigned char format[5];
+		memcpy(format,&(formats_supported[i].pixelformat),4);
+		format[4]=0;
+
+    printf("format %d = '%4s' desc = '%s'\n",i, (format), formats_supported[i].description);
+		
+		for(int j=0; j<formats_supported[i].sizes_supported.size();j++){
+			formats_supported[i].sizes_supported[j];
+
+      if (formats_supported[i].sizes_supported[j].type == V4L2_FRMSIZE_TYPE_DISCRETE)
+      {
+        printf("  discrete: %ux%u:   ",formats_supported[i].sizes_supported[j].discrete.width, formats_supported[i].sizes_supported[j].discrete.height);
+
+				for(int k=0;k<formats_supported[i].sizes_supported[j].frame_rates.size();k++){
+            printf("%u/%u ",formats_supported[i].sizes_supported[j].frame_rates[k].discrete.numerator, formats_supported[i].sizes_supported[j].frame_rates[k].discrete.denominator);
+				}
+				printf("\n");
+			} else if (formats_supported[i].sizes_supported[j].type == V4L2_FRMSIZE_TYPE_CONTINUOUS)
+      {
+        printf("  continuous: %ux%u to %ux%u\n",
+               formats_supported[i].sizes_supported[j].stepwise.min_width, formats_supported[i].sizes_supported[j].stepwise.min_height,
+               formats_supported[i].sizes_supported[j].stepwise.max_width, formats_supported[i].sizes_supported[j].stepwise.max_height);
+				//why is there no method of determining frame intervals for continuous frame sizes
+      }
+      else if (formats_supported[i].sizes_supported[j].type == V4L2_FRMSIZE_TYPE_STEPWISE)
+      {
+        printf("  stepwise: %ux%u to %ux%u step %ux%u\n",
+               formats_supported[i].sizes_supported[j].stepwise.min_width,  formats_supported[i].sizes_supported[j].stepwise.min_height,
+               formats_supported[i].sizes_supported[j].stepwise.max_width,  formats_supported[i].sizes_supported[j].stepwise.max_height,
+               formats_supported[i].sizes_supported[j].stepwise.step_width, formats_supported[i].sizes_supported[j].stepwise.step_height);
+				//why is there no method of determining frame intervals for stepwise frame sizes				
+      }
+      else
+      {
+        printf("  fsize.type not supported: %d\n", formats_supported[i].sizes_supported[j].type);
+      }
+
+		}
+	}
 }
 
+std::vector <control_info> Cam::get_controls_supported(){
+	return controls;
+}
+
+void Cam::display_controls_supported(){
+	printf("controls\n");
+}

@@ -1,3 +1,6 @@
+opening /dev/video0
+pixfmt 0 = 'YUYV' desc = 'YUV 4:2:2 (YUYV)'
+
  discrete: 640x480:   1/30 1/15 
   discrete: 352x288:   1/30 1/15 
   discrete: 320x240:   1/30 1/15 
@@ -31,5 +34,5 @@
 
 
 rosrun image_view image_view image:=/camera/image
-
+rosrun uvc_cam senderIT
 

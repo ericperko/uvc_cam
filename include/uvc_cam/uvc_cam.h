@@ -25,9 +25,42 @@
 #include <string>
 #include <linux/videodev2.h>
 #include <stdint.h>
+#include <vector>
 
 namespace uvc_cam
 {
+
+struct control_info{
+	v4l2_queryctrl ctrl;
+	std::vector <v4l2_querymenu> menu_list;
+};
+
+struct frame_rate_info{
+	__u32 type;
+	union{
+		v4l2_fract discrete;	
+		v4l2_frmival_stepwise stepwise;
+	};
+};
+
+struct size_info{
+	__u32 type;
+	union{
+		v4l2_frmsize_discrete discrete;
+		v4l2_frmsize_stepwise stepwise;
+	};
+	//list of all frame rates supported at this size
+	std::vector <frame_rate_info> frame_rates;
+};
+
+struct format_info{
+	__u32 pixelformat;
+	__u8 description[32];
+	//list of all sizes supported at this pixel format
+	std::vector <size_info> sizes_supported;
+};
+
+
 
 enum v4l2_uvc_exposure_auto_type 
 {
@@ -61,9 +94,15 @@ public:
   int grab(unsigned char **frame, uint32_t &bytes_used);
   void release(unsigned buf_idx);
   bool set_auto_white_balance(bool on);
-  void set_motion_thresholds(int lum, int count);
+
   void set_control(uint32_t id, int val);
+	std::vector <format_info> get_formats_supported();
+	std::vector <control_info> get_controls_supported();
+	void display_formats_supported();
+	void display_controls_supported();
 private:
+	std::vector <format_info> formats_supported;
+	std::vector <control_info> controls;
   std::string device;
   int fd, motion_threshold_luminance, motion_threshold_count;
   unsigned width, height, fps;
