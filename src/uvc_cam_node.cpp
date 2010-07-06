@@ -183,7 +183,10 @@ public:
 			unsigned char *frame = NULL;
 			uint32_t bytes_used;
 			int buf_idx = cam_->grab(&frame, bytes_used);
-			if (frame)
+			if (buf_idx < 0) {
+				ROS_WARN("Could not grab image");
+			}
+			else if (frame)
 			{
 				//cv::WImageBuffer3_b image( frame );
 				//cv::Mat data(height, width, CV_8UC1, frame, 3 * width);

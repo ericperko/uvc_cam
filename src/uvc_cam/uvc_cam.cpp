@@ -423,6 +423,7 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
   memset(&buf, 0, sizeof(buf));
   buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   buf.memory = V4L2_MEMORY_MMAP;
+  //This call will block until there is a buffer that has pixel info in it
   if (ioctl(fd, VIDIOC_DQBUF, &buf) < 0)
     throw std::runtime_error("couldn't dequeue buffer");
   bytes_used = buf.bytesused;

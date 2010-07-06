@@ -1,0 +1,5 @@
+<launch>
+    <node name="uvc_cam_node" pkg="uvc_cam" type="uvc_cam_node">
+	<param name="frame_rate" value="15.0" />
+    </node>
+</launch>
