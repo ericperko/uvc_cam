@@ -508,13 +508,13 @@ void Cam::set_control(uint32_t id, int val)
   }
 	else{
 		perror("unable to get control");
-    throw std::runtime_error("unable to get control");
+    throw Exception("unable to get control");
   }
   c.value = val;
   if (ioctl(fd, VIDIOC_S_CTRL, &c) < 0)
   {
     perror("unable to set control");
-    throw std::runtime_error("unable to set control");
+    throw Exception("unable to set control");
   }
 }
 
