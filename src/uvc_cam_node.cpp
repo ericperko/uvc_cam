@@ -29,7 +29,9 @@
 
 // Modified Apr 6, 2010 by Adam Leeper - changed to use "image_transport"
 
-// Much of this code is either heavily inspired by or taken directly from the camera1394 ROS driver by Jack O'Quinn
+/* Much of this code is either heavily inspired by or taken directly from the
+ * camera1394 ROS driver by Jack O'Quin
+ */
 
 #include <signal.h>
 #include <cstdio>
@@ -37,9 +39,8 @@
 #include <ros/time.h>
 #include <uvc_cam/uvc_cam.h>
 #include <sensor_msgs/Image.h>
-#include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
-
+#include <tf/transform_listener.h>
 #include <camera_info_manager/camera_info_manager.h>
 #include <dynamic_reconfigure/server.h>
 #include <driver_base/SensorLevels.h>
@@ -70,9 +71,9 @@ private:
 	ros::NodeHandle camera_nh_;           // camera name space handle
 	sensor_msgs::Image image_;
 	sensor_msgs::CameraInfo cam_info_;
-	std::string device;
-
-	int width, height, fps;
+	std::string device_;
+	std::string camera_name_;
+	sensor_msgs::CvBridge bridge_;
 
 	/** dynamic parameter configuration */
 	typedef uvc_cam::UVCCamConfig Config;
@@ -81,6 +82,8 @@ private:
 	/** camera calibration information */
 	CameraInfoManager cinfo_;
 	bool calibration_matches_;            // cam_info_ matches video mode
+
+	uvc_cam::Cam *cam_;
 
 	/** image transport interfaces */
 	image_transport::ImageTransport it_;
@@ -95,8 +98,15 @@ public:
 	{
 		state_ = Driver::CLOSED;
 		calibration_matches_ = true;
-		device = "/dev/video0";
+		device_ = "/dev/video0";
+		camera_name_ = "camera";
 	};
+
+	~UVCCamNode() {
+		if(state_ != Driver::CLOSED) {
+			closeCamera();
+		}
+	}
 
 	/** Close camera device
 	 *
@@ -105,8 +115,10 @@ public:
 	void closeCamera() {
 		if (state_ != Driver::CLOSED)
 		{
-			ROS_INFO_STREAM("[" << device << "] closing device");
-			//			dev_->close();
+			ROS_INFO_STREAM("[" << camera_name_ << "] closing device");
+			if(cam_) {
+				delete cam_;
+			}
 			state_ = Driver::CLOSED;
 		}
 	}
@@ -118,48 +130,41 @@ public:
 	 *
 	 * if successful:
 	 *   state_ is Driver::OPENED
-	 *   camera_name_ set to GUID string
+	 *   camera_name_ set to camera_name string
 	 */
 	bool openCamera(Config &newconfig)
 	{
 		bool success = true;
 
-		ROS_INFO("opening uvc_cam at %dx%d, %d fps", width, height, fps);
-		uvc_cam::Cam cam(device.c_str(), uvc_cam::Cam::MODE_RGB, width, height, fps);
-		//	    try
-		//	      {
-		//	        if (dev_->open(newconfig.guid.c_str(), newconfig.video_mode.c_str(),
-		//	                       newconfig.frame_rate, newconfig.iso_speed,
-		//	                       newconfig.bayer_pattern.c_str(),
-		//	                       newconfig.bayer_method.c_str())
-		//	            == 0)
-		//	          {
-		//	            if (camera_name_ != dev_->device_id_)
-		//	              {
-		//	                camera_name_ = dev_->device_id_;
-		//	                if (!cinfo_->setCameraName(camera_name_))
-		//	                  {
-		//	                    // GUID is 16 hex digits, which should be valid.
-		//	                    // If not, use it for log messages anyway.
-		//	                    ROS_WARN_STREAM("[" << camera_name_ << "] name not valid"
-		//	                                    << " for camera_info_manger");
-		//	                  }
-		//	              }
-		//	            ROS_INFO_STREAM("[" << camera_name_
-		//	                            << "] opened: " << newconfig.video_mode << ", "
-		//	                            << newconfig.frame_rate << " fps, "
-		//	                            << newconfig.iso_speed << " Mb/s");
-		//	            state_ = Driver::OPENED;
-		//	            calibration_matches_ = true;
-		//	          }
-		//
-		//	      }
-		//	    catch (camera1394::Exception& e)
-		//	      {
-		//	        ROS_FATAL_STREAM("[" << camera_name_
-		//	                         << "] exception opening device: " << e.what());
-		//	        success = false;
-		//	      }
+		try
+		{
+			ROS_INFO("opening uvc_cam at %dx%d, %f fps", newconfig.width, newconfig.height, newconfig.frame_rate);
+			cam_ = new uvc_cam::Cam(newconfig.device.c_str(), uvc_cam::Cam::MODE_RGB, newconfig.width, newconfig.height, newconfig.frame_rate);
+			if (camera_name_ != camera_name_)
+			{
+				camera_name_ = camera_name_;
+				if (!cinfo_.setCameraName(camera_name_))
+				{
+					// GUID is 16 hex digits, which should be valid.
+					// If not, use it for log messages anyway.
+					ROS_WARN_STREAM("[" << camera_name_ << "] name not valid"
+							<< " for camera_info_manger");
+				}
+			}
+			//			ROS_INFO_STREAM("[" << camera_name_
+			//					<< "] opened: " << newconfig.video_mode << ", "
+			//					<< newconfig.frame_rate << " fps, "
+			//					<< newconfig.iso_speed << " Mb/s");
+			state_ = Driver::OPENED;
+			calibration_matches_ = true;
+
+		}
+		catch (uvc_cam::Exception& e)
+		{
+			ROS_FATAL_STREAM("[" << camera_name_
+					<< "] exception opening device: " << e.what());
+			success = false;
+		}
 
 		return success;
 	}
@@ -169,11 +174,154 @@ public:
 	 * @return true if successful
 	 */
 	bool read() {
-		return false;
+		bool success = true;
+		IplImage *imageIpl = cvCreateImageHeader(cvSize(config_.width,config_.height), 8, 3);
+		try
+		  {
+			// Read data from the Camera
+			ROS_DEBUG_STREAM("[" << camera_name_ << "] reading data");
+			unsigned char *frame = NULL;
+			uint32_t bytes_used;
+			int buf_idx = cam_->grab(&frame, bytes_used);
+			if (frame)
+			{
+				//cv::WImageBuffer3_b image( frame );
+				//cv::Mat data(height, width, CV_8UC1, frame, 3 * width);
+				imageIpl->imageData = (char *)frame;
+				image_ = *bridge_.cvToImgMsg( imageIpl, "bgr8");
+				cam_->release(buf_idx);
+			}
+			ROS_DEBUG_STREAM("[" << camera_name_ << "] read returned");
+		  }
+		catch (uvc_cam::Exception& e)
+		  {
+			ROS_WARN_STREAM("[" << camera_name_
+							<< "] Exception reading data: " << e.what());
+			success = false;
+		  }
+		return success;
 	}
 
-	void publish() {
-		image_pub_.publish(image_, cam_info_);
+	  /** Publish camera stream topics
+	   *
+	   *  @pre image_ contains latest camera frame
+	   */
+	  void publish()
+	  {
+	    image_.header.frame_id = config_.frame_id;
+
+	    // get current CameraInfo data
+	    cam_info_ = cinfo_.getCameraInfo();
+
+	    if (cam_info_.height != image_.height || cam_info_.width != image_.width)
+	      {
+	        // image size does not match: publish a matching uncalibrated
+	        // CameraInfo instead
+	        if (calibration_matches_)
+	          {
+	            // warn user once
+	            calibration_matches_ = false;
+	            ROS_WARN_STREAM("[" << camera_name_
+	                            << "] calibration does not match video mode "
+	                            << "(publishing uncalibrated data)");
+	          }
+	        cam_info_ = sensor_msgs::CameraInfo();
+	        cam_info_.height = image_.height;
+	        cam_info_.width = image_.width;
+	      }
+	    else if (!calibration_matches_)
+	      {
+	        // calibration OK now
+	        calibration_matches_ = true;
+	        ROS_INFO_STREAM("[" << camera_name_
+	                        << "] calibration matches video mode now");
+	      }
+
+	    cam_info_.header.frame_id = config_.frame_id;
+	    cam_info_.header.stamp = image_.header.stamp;
+
+	    // @todo log a warning if (filtered) time since last published
+	    // image is not reasonably close to configured frame_rate
+
+	    // Publish via image_transport
+	    image_pub_.publish(image_, cam_info_);
+	  }
+
+	/** Dynamic reconfigure callback
+	 *
+	 *  Called immediately when callback first defined. Called again
+	 *  when dynamic reconfigure starts or changes a parameter value.
+	 *
+	 *  @param newconfig new Config values
+	 *  @param level bit-wise OR of reconfiguration levels for all
+	 *               changed parameters (0xffffffff on initial call)
+	 **/
+	void reconfig(Config &newconfig, uint32_t level)
+	{
+		ROS_DEBUG("dynamic reconfigure level 0x%x", level);
+
+		// resolve frame ID using tf_prefix parameter
+		if (newconfig.frame_id == "")
+			newconfig.frame_id = "camera";
+		std::string tf_prefix = tf::getPrefixParam(privNH_);
+		ROS_DEBUG_STREAM("tf_prefix: " << tf_prefix);
+		newconfig.frame_id = tf::resolve(tf_prefix, newconfig.frame_id);
+
+		if (state_ != Driver::CLOSED && (level & Levels::RECONFIGURE_CLOSE))
+		{
+			// must close the device before updating these parameters
+			closeCamera();                  // state_ --> CLOSED
+		}
+
+		if (state_ == Driver::CLOSED)
+		{
+			// open with new values
+			if (openCamera(newconfig))
+			{
+				// update camera name string
+				newconfig.camera_name = camera_name_;
+			}
+		}
+
+		if (config_.camera_info_url != newconfig.camera_info_url)
+		{
+			// set the new URL and load CameraInfo (if any) from it
+			if (cinfo_.validateURL(newconfig.camera_info_url))
+			{
+				cinfo_.loadCameraInfo(newconfig.camera_info_url);
+			}
+			else
+			{
+				// new URL not valid, use the old one
+				newconfig.camera_info_url = config_.camera_info_url;
+			}
+		}
+
+		//	    if (state_ != Driver::CLOSED)       // openCamera() succeeded?
+		//	      {
+		//	        // configure IIDC features
+		//	        if (level & Levels::RECONFIGURE_CLOSE)
+		//	          {
+		//	            // initialize all features for newly opened device
+		//	            if (false == dev_->features_->initialize(&newconfig))
+		//	              {
+		//	                ROS_ERROR_STREAM("[" << camera_name_
+		//	                                 << "] feature initialization failure");
+		//	                closeCamera();          // can't continue
+		//	              }
+		//	          }
+		//	        else
+		//	          {
+		//	            // update any features that changed
+		//	            dev_->features_->reconfigure(&newconfig);
+		//	          }
+		//	      }
+
+		config_ = newconfig;                // save new parameters
+
+		ROS_DEBUG_STREAM("[" << camera_name_
+				<< "] reconfigured: frame_id " << newconfig.frame_id
+				<< ", camera_info_url " << newconfig.camera_info_url);
 	}
 
 	/** driver main spin loop */\
@@ -181,10 +329,16 @@ public:
 
 		ros::NodeHandle node;
 
-		privNH_.param<std::string>("device", device, "/dev/video0");
-		privNH_.param("width", width, 640);
-		privNH_.param("height", height, 480);
-		privNH_.param("fps", fps, 30);
+		// define segmentation fault handler in case the underlying uvc driver craps out
+		signal(SIGSEGV, &sigsegv_handler);
+
+		// Define dynamic reconfigure callback, which gets called
+		// immediately with level 0xffffffff.  The reconfig() method will
+		// set initial parameter values, then open the device if it can.
+		dynamic_reconfigure::Server<Config> srv;
+		dynamic_reconfigure::Server<Config>::CallbackType f
+		= boost::bind(&UVCCamNode::reconfig, this, _1, _2);
+		srv.setCallback(f);
 
 		image_pub_ = it_.advertiseCamera("image_raw", 1);
 
@@ -215,55 +369,5 @@ int main(int argc, char **argv)
 	cam.spin();
 
 	return 0;
-	//	IplImage *imageIpl = cvCreateImageHeader(cvSize(width,height), 8, 3);
-	//
-	//	ros::Time t_prev(ros::Time::now());
-	//	int count = 0, skip_count = 0;
-	//	while (n.ok())
-	//	{
-	//		unsigned char *frame = NULL;
-	//		uint32_t bytes_used;
-	//		int buf_idx = cam.grab(&frame, bytes_used);
-	//		if (count++ % fps == 0)
-	//		{
-	//			ros::Time t(ros::Time::now());
-	//			ros::Duration d(t - t_prev);
-	//			ROS_INFO("%.1f fps skip %d", (double)fps / d.toSec(), skip_count);
-	//			t_prev = t;
-	//		}
-	//		if (frame)
-	//		{
-	//			//cv::WImageBuffer3_b image( frame );
-	//			//cv::Mat data(height, width, CV_8UC1, frame, 3 * width);
-	//			imageIpl->imageData = (char *)frame;
-	//			sensor_msgs::Image::Ptr image = sensor_msgs::CvBridge::cvToImgMsg( imageIpl, "bgr8");
-	//
-	//			//sensor_msgs::Image image;
-	//
-	//			image->header.stamp = ros::Time::now();
-	//			image->encoding = sensor_msgs::image_encodings::BGR8;
-	//			image->height = height;
-	//			image->width = width;
-	//			image->step = 3 * width;
-	//
-	//			//image->set_data_size( image.step * image.height );
-	//
-	//			/*
-	//      uint8_t* bgr = &(image.data[0]);
-	//      for (uint32_t y = 0; y < height; y++)
-	//        for (uint32_t x = 0; x < width; x++)
-	//        {
-	//          // hack... flip bgr to rgb
-	//          uint8_t *p = frame + y * width * 3 + x * 3;
-	//          uint8_t *q = bgr   + y * width * 3 + x * 3;
-	//          q[0] = p[2]; q[1] = p[1]; q[2] = p[0];
-	//        }
-	//			 */
-	//			//memcpy(&image.data[0], frame, width * height * 3);
-	//			cam.release(buf_idx);
-	//		}
-	//		else
-	//			skip_count++;
-	//	}
 }
 
