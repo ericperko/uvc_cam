@@ -34,5 +34,5 @@ pixfmt 0 = 'YUYV' desc = 'YUV 4:2:2 (YUYV)'
 
 
 rosrun image_view image_view image:=/camera/image
-rosrun uvc_cam senderIT
+rosrun uvc_cam uvc_cam_node
 
