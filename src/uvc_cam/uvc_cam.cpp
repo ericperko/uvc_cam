@@ -22,6 +22,30 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
   if ((fd = open(_device, O_RDWR)) == -1)
     throw std::runtime_error("couldn't open " + device);
 
+
+
+
+/*
+v4l2_input input;
+memset(&input,0,sizeof(input));
+
+int index;
+if(-1==ioctl(fd,VIDIOC_G_INPUT,&index)){
+	perror("vidioc blah");
+}
+
+input.index=index;
+
+if(ioctl(fd,VIDIOC_ENUMINPUT, &input)==0){
+	printf("input: %s\n",input.name);
+}else{
+printf("faiiiiiled\n");
+perror("");}
+*/
+
+
+
+
 /// clearing structs
 
   memset(&fmt, 0, sizeof(v4l2_format));
@@ -447,6 +471,7 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
       *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
       *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
+
       *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
       *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
