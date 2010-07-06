@@ -14,7 +14,12 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #pkg_check_modules(SDL REQUIRED sdl)
 #include_directories(${SDL_INCLUDE_DIRS})
 #link_directories(${SDL_LIBRARY_DIRS})
-add_definitions("-D_FILE_OFFSET_BITS=64")
+#add_definitions("-D_FILE_OFFSET_BITS=64") #No idea what this is for... maybe something for the SDL library?
+
+# auto-generated dynamic reconfiguration GUI
+rosbuild_find_ros_package(dynamic_reconfigure)
+include(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
+gencfg()
 
 rosbuild_add_library(uvc_cam src/uvc_cam/uvc_cam.cpp)
 # librt is needed for clock_gettime();  not sure how this interacts with
