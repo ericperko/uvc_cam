@@ -285,6 +285,42 @@ public:
 				newconfig.camera_name = camera_name_;
 			}
 		}
+		
+		
+		///THIS IS A QUICK HACK TO GET EXPOSURE ON OUR CAMERA'S THIS DOES NOT WORK FOR ALL CAMERAS
+
+		if(config_.exposure != newconfig.exposure){
+		  cam_->set_control(0x9a0901, newconfig.exposure);
+		}
+		if(config_.absolue_exposure != newconfig.absolue_exposure){
+		  cam_->set_control(0x9a0902, newconfig.absolue_exposure);
+		}
+		if(config_.sharpness != newconfig.sharpness){
+		  cam_->set_control(0x98091b, newconfig.sharpness);
+		}
+		if(config_.power_line_frequency != newconfig.power_line_frequency){
+		  cam_->set_control(0x980918, newconfig.power_line_frequency);
+		}
+		if(config_.white_balance_temperature != newconfig.white_balance_temperature){
+		  cam_->set_control(0x98090c, newconfig.white_balance_temperature);
+		}
+		if(config_.gain != newconfig.gain){
+		  cam_->set_control(0x980913, newconfig.gain);
+		}
+		if(config_.gamma != newconfig.gamma){
+		  cam_->set_control(0x980910, newconfig.gamma);
+		}
+		if(config_.saturation != newconfig.saturation){
+		  cam_->set_control(0x980902, newconfig.saturation);
+		}
+		if(config_.contrast != newconfig.contrast){
+		  cam_->set_control(0x980901, newconfig.contrast);
+		}
+		if(config_.brightness != newconfig.brightness){
+		  cam_->set_control(0x980900, newconfig.brightness);
+		}
+		
+		
 
 		if (config_.camera_info_url != newconfig.camera_info_url)
 		{

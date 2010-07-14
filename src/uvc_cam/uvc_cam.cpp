@@ -500,6 +500,7 @@ void Cam::release(unsigned buf_idx)
 
 void Cam::set_control(uint32_t id, int val)
 {
+  printf("setting control %x\n",id);
   v4l2_control c;
   c.id = id;
   if (ioctl(fd, VIDIOC_G_CTRL, &c) == 0)
@@ -507,14 +508,16 @@ void Cam::set_control(uint32_t id, int val)
     printf("current value of %x is %d\n", id, c.value);
   }
 	else{
-		perror("unable to get control");
-    throw Exception("unable to get control");
+		perror("unable to get control\n");
+    throw Exception("unable to get control\n");
   }
   c.value = val;
   if (ioctl(fd, VIDIOC_S_CTRL, &c) < 0)
   {
-    perror("unable to set control");
-    throw Exception("unable to set control");
+    perror("unable to set control\n");
+    throw Exception("unable to set control\n");
+  }else{
+    printf("new value of %x is %d\n", id, val);  
   }
 }
 
