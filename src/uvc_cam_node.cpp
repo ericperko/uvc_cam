@@ -209,6 +209,7 @@ public:
 	void publish()
 	{
 		image_.header.frame_id = config_.frame_id;
+		image_.header.stamp = ros::Time::now();
 
 		// get current CameraInfo data
 		cam_info_ = cinfo_.getCameraInfo();
