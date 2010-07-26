@@ -30,9 +30,7 @@ pixfmt 0 = 'YUYV' desc = 'YUV 4:2:2 (YUYV)'
     2: Shutter Priority Mode
     3: Aperture Priority Mode
   int (Exposure (Absolute), 0, id = 9a0902): 8 to 16384 (1)
-
-
-
+  
 rosrun image_view image_view image:=/camera/image
 rosrun uvc_cam uvc_cam_node
 

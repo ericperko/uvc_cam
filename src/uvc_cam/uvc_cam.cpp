@@ -22,6 +22,30 @@ Cam::Cam(const char *_device, mode_t _mode, int _width, int _height, int _fps)
   if ((fd = open(_device, O_RDWR)) == -1)
     throw std::runtime_error("couldn't open " + device);
 
+
+
+
+/*
+v4l2_input input;
+memset(&input,0,sizeof(input));
+
+int index;
+if(-1==ioctl(fd,VIDIOC_G_INPUT,&index)){
+	perror("vidioc blah");
+}
+
+input.index=index;
+
+if(ioctl(fd,VIDIOC_ENUMINPUT, &input)==0){
+	printf("input: %s\n",input.name);
+}else{
+printf("faiiiiiled\n");
+perror("");}
+*/
+
+
+
+
 /// clearing structs
 
   memset(&fmt, 0, sizeof(v4l2_format));
@@ -423,6 +447,7 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
   memset(&buf, 0, sizeof(buf));
   buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   buf.memory = V4L2_MEMORY_MMAP;
+  //This call will block until there is a buffer that has pixel info in it
   if (ioctl(fd, VIDIOC_DQBUF, &buf) < 0)
     throw std::runtime_error("couldn't dequeue buffer");
   bytes_used = buf.bytesused;
@@ -446,6 +471,7 @@ int Cam::grab(unsigned char **frame, uint32_t &bytes_used)
       *prgb++ = sat(pyuv[i]+1.772f  *(pyuv[i+1]-128));
       *prgb++ = sat(pyuv[i]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i]+1.402f  *(pyuv[i+3]-128));
+
       *prgb++ = sat(pyuv[i+2]+1.772f*(pyuv[i+1]-128));
       *prgb++ = sat(pyuv[i+2]-0.34414f*(pyuv[i+1]-128)-0.71414f*(pyuv[i+3]-128));
       *prgb++ = sat(pyuv[i+2]+1.402f*(pyuv[i+3]-128));
@@ -474,6 +500,7 @@ void Cam::release(unsigned buf_idx)
 
 void Cam::set_control(uint32_t id, int val)
 {
+  printf("setting control %x\n",id);
   v4l2_control c;
   c.id = id;
   if (ioctl(fd, VIDIOC_G_CTRL, &c) == 0)
@@ -481,14 +508,16 @@ void Cam::set_control(uint32_t id, int val)
     printf("current value of %x is %d\n", id, c.value);
   }
 	else{
-		perror("unable to get control");
-    throw std::runtime_error("unable to get control");
+		perror("unable to get control\n");
+    throw Exception("unable to get control\n");
   }
   c.value = val;
   if (ioctl(fd, VIDIOC_S_CTRL, &c) < 0)
   {
-    perror("unable to set control");
-    throw std::runtime_error("unable to set control");
+    perror("unable to set control\n");
+    throw Exception("unable to set control\n");
+  }else{
+    printf("new value of %x is %d\n", id, val);  
   }
 }
 
