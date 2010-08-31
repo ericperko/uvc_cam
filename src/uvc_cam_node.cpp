@@ -202,6 +202,7 @@ public:
 					<< "] Exception reading data: " << e.what());
 			success = false;
 		}
+		cvReleaseImageHeader(&imageIpl);
 		return success;
 	}
 
