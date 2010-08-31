@@ -291,34 +291,74 @@ public:
 		///THIS IS A QUICK HACK TO GET EXPOSURE ON OUR CAMERA'S THIS DOES NOT WORK FOR ALL CAMERAS
 
 		if(config_.exposure != newconfig.exposure){
-		  cam_->set_control(0x9a0901, newconfig.exposure);
+			try {
+				  cam_->set_control(0x9a0901, newconfig.exposure);
+			} catch (uvc_cam::Exception& e) {
+				  ROS_ERROR_STREAM("Problem setting exposure. Exception was " << e.what());
+			}
 		}
 		if(config_.absolue_exposure != newconfig.absolue_exposure){
+			try {
 		  cam_->set_control(0x9a0902, newconfig.absolue_exposure);
+		  	} catch (uvc_cam::Exception& e) {
+				ROS_ERROR_STREAM("Problem setting absolute exposure. Exception was " << e.what());
+			}
 		}
 		if(config_.sharpness != newconfig.sharpness){
+			try {
 		  cam_->set_control(0x98091b, newconfig.sharpness);
+			} catch (uvc_cam::Exception& e) {
+				ROS_ERROR_STREAM("Problem setting sharpness. Exception was " << e.what());
+			}
 		}
 		if(config_.power_line_frequency != newconfig.power_line_frequency){
+			try {
 		  cam_->set_control(0x980918, newconfig.power_line_frequency);
+			} catch (uvc_cam::Exception& e) {
+				ROS_ERROR_STREAM("Problem setting powerline frequency. Exception was " << e.what());
+			}
 		}
 		if(config_.white_balance_temperature != newconfig.white_balance_temperature){
+			try {
 		  cam_->set_control(0x98090c, newconfig.white_balance_temperature);
+		  	} catch (uvc_cam::Exception& e) {
+				ROS_ERROR_STREAM("Problem setting white balance temperature. Exception was " << e.what());
+			}
 		}
 		if(config_.gain != newconfig.gain){
+			try {
 		  cam_->set_control(0x980913, newconfig.gain);
+		  	} catch (uvc_cam::Exception& e) {
+				ROS_ERROR_STREAM("Problem setting gain. Exception was " << e.what());
+			}
 		}
 		if(config_.gamma != newconfig.gamma){
-		  cam_->set_control(0x980910, newconfig.gamma);
+		  try {
+			  cam_->set_control(0x980910, newconfig.gamma);
+		  } catch (uvc_cam::Exception& e) {
+			  ROS_ERROR_STREAM("Problem setting gamma. Exception was " << e.what());
+		  }
 		}
 		if(config_.saturation != newconfig.saturation){
+			try {
 		  cam_->set_control(0x980902, newconfig.saturation);
+		  	} catch (uvc_cam::Exception& e) {
+				ROS_ERROR_STREAM("Problem setting saturation. Exception was " << e.what());
+			}
 		}
 		if(config_.contrast != newconfig.contrast){
+			try {
 		  cam_->set_control(0x980901, newconfig.contrast);
+		  	} catch (uvc_cam::Exception& e) {
+				ROS_ERROR_STREAM("Problem setting contrast. Exception was " << e.what());
+			}
 		}
 		if(config_.brightness != newconfig.brightness){
+			try {
 		  cam_->set_control(0x980900, newconfig.brightness);
+		  	} catch (uvc_cam::Exception& e) {
+				ROS_ERROR_STREAM("Problem setting brightness. Exception was " << e.what());
+			}
 		}
 		
 		
