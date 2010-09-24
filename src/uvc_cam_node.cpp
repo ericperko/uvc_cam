@@ -158,6 +158,8 @@ public:
 			state_ = Driver::OPENED;
 			calibration_matches_ = true;
 
+		//	cam_->display_formats_supported();
+
 		}
 		catch (uvc_cam::Exception& e)
 		{
@@ -332,13 +334,6 @@ public:
 		  	} catch (uvc_cam::Exception& e) {
 				ROS_ERROR_STREAM("Problem setting gain. Exception was " << e.what());
 			}
-		}
-		if(config_.gamma != newconfig.gamma){
-		  try {
-			  cam_->set_control(0x980910, newconfig.gamma);
-		  } catch (uvc_cam::Exception& e) {
-			  ROS_ERROR_STREAM("Problem setting gamma. Exception was " << e.what());
-		  }
 		}
 		if(config_.saturation != newconfig.saturation){
 			try {
