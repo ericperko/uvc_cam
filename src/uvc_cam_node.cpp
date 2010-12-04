@@ -139,7 +139,18 @@ public:
 		try
 		{
 			ROS_INFO("opening uvc_cam at %dx%d, %f fps", newconfig.width, newconfig.height, newconfig.frame_rate);
-			cam_ = new uvc_cam::Cam(newconfig.device.c_str(), uvc_cam::Cam::MODE_RGB, newconfig.width, newconfig.height, newconfig.frame_rate);
+                        uvc_cam::Cam::mode_t mode = uvc_cam::Cam::MODE_RGB;
+                        switch (newconfig.format_mode) {
+                                case 1:
+                                  mode = uvc_cam::Cam::MODE_RGB;
+                                case 2:
+                                  mode = uvc_cam::Cam::MODE_YUYV;
+                                case 3:
+                                  mode = uvc_cam::Cam::MODE_MJPG;
+                                default:
+                                  mode = uvc_cam::Cam::MODE_RGB;
+                        }
+			cam_ = new uvc_cam::Cam(newconfig.device.c_str(), mode, newconfig.width, newconfig.height, newconfig.frame_rate);
 			if (camera_name_ != camera_name_)
 			{
 				camera_name_ = camera_name_;
