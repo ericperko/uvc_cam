@@ -311,9 +311,9 @@ public:
 				  ROS_ERROR_STREAM("Problem setting exposure. Exception was " << e.what());
 			}
 		}
-		if(config_.absolue_exposure != newconfig.absolue_exposure){
+		if(config_.absolute_exposure != newconfig.absolute_exposure){
 			try {
-		  cam_->set_control(0x9a0902, newconfig.absolue_exposure);
+		  cam_->set_control(0x9a0902, newconfig.absolute_exposure);
 		  	} catch (uvc_cam::Exception& e) {
 				ROS_ERROR_STREAM("Problem setting absolute exposure. Exception was " << e.what());
 			}
