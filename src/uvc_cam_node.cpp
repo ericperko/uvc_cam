@@ -80,7 +80,7 @@ private:
 	Config config_;
 
 	/** camera calibration information */
-	CameraInfoManager cinfo_;
+	camera_info_manager::CameraInfoManager cinfo_;
 	bool calibration_matches_;            // cam_info_ matches video mode
 
 	uvc_cam::Cam *cam_;
