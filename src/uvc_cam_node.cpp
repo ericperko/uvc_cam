@@ -40,6 +40,7 @@
 #include <uvc_cam/uvc_cam.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/fill_image.h>
 #include <tf/transform_listener.h>
 #include <camera_info_manager/camera_info_manager.h>
 #include <dynamic_reconfigure/server.h>
@@ -47,7 +48,6 @@
 #include <driver_base/driver.h>
 
 #include <image_transport/image_transport.h>
-#include <cv_bridge/CvBridge.h>
 
 #include "uvc_cam/UVCCamConfig.h"
 
@@ -73,7 +73,6 @@ private:
 	sensor_msgs::CameraInfo cam_info_;
 	std::string device_;
 	std::string camera_name_;
-	sensor_msgs::CvBridge bridge_;
 
 	/** dynamic parameter configuration */
 	typedef uvc_cam::UVCCamConfig Config;
@@ -188,7 +187,6 @@ public:
 	 */
 	bool read() {
 		bool success = true;
-		IplImage *imageIpl = cvCreateImageHeader(cvSize(config_.width,config_.height), 8, 3);
 		try
 		{
 			// Read data from the Camera
@@ -203,8 +201,8 @@ public:
 			{
 				//cv::WImageBuffer3_b image( frame );
 				//cv::Mat data(height, width, CV_8UC1, frame, 3 * width);
-				imageIpl->imageData = (char *)frame;
-				image_ = *bridge_.cvToImgMsg( imageIpl, "bgr8");
+                                sensor_msgs::fillImage(image_, "bgr8", config_.height, config_.width,
+                                    3*config_.width, frame);
 				cam_->release(buf_idx);
 			}
 			ROS_DEBUG_STREAM("[" << camera_name_ << "] read returned");
@@ -215,7 +213,6 @@ public:
 					<< "] Exception reading data: " << e.what());
 			success = false;
 		}
-		cvReleaseImageHeader(&imageIpl);
 		return success;
 	}
 
