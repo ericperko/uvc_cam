@@ -1,0 +1,4 @@
+- git:
+    local-name: uvc_cam
+    uri: https://github.com/ericperko/uvc_cam.git
+    version: master
